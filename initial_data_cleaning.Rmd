@@ -17,33 +17,20 @@ library(fpp3)
 
 # Import Data and convert to tibble
 ```{r}
-co2 <- read.csv('co2.csv', sep=";", row.names = NULL)
-occupied_status <- read.csv('occupied_status.csv', sep=";", row.names = NULL)
-supply_air_flow <- read.csv('supply_air_flow.csv', sep=";", row.names = NULL)
-supply_fan <- read.csv('supply_fan.csv', sep=";", row.names = NULL)
-temperature <- read.csv('temperature.csv', sep=";", row.names = NULL)
+read_and_clean <- function(csv_path){
+  df <- read.csv(csv_path, sep=";", row.names = NULL)
+  colnames(df) <- c("series", 'time','value')
+  df$value <- as.numeric(df$value)
+  df<- df[-1,]
+  df <- as_tibble(df)
+  return(df)
+}
 
-colnames(co2) <- c("series", 'time','co2_value')
-co2<- co2[-1,]
-
-colnames(occupied_status) <- c("series", 'time','occupied_status')
-occupied_status<- occupied_status[-1,]
-
-colnames(supply_air_flow) <- c("series", 'time','supply_air_flow')
-supply_air_flow<- supply_air_flow[-1,]
-
-colnames(supply_fan) <- c("series", 'time','supply_fan')
-supply_fan<- supply_fan[-1,]
-
-colnames(temperature) <- c("series", 'time','temperature')
-temperature<- temperature[-1,]
-
-
-co2 <- as_tibble(co2)
-occupied_status <- as_tibble(occupied_status)
-supply_air_flow <- as_tibble(supply_air_flow)
-supply_fan <- as_tibble(supply_fan)
-temperature <- as_tibble(temperature)
+co2 <- read_and_clean('co2.csv')
+occupied_status <- read_and_clean('occupied_status.csv')
+supply_air_flow <- read_and_clean('supply_air_flow.csv')
+supply_fan <- read_and_clean('supply_fan.csv')
+temperature <- read_and_clean('temperature.csv')
 
 ```
 
@@ -83,6 +70,7 @@ temperature <- as_tsibble(temperature, key= series, index = time)
 
 # EDA
 ```{r}
-boxplot(as.numeric(co2$co2_value))
+print(co2)
+
 ```
 
