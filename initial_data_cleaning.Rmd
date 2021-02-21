@@ -1,0 +1,88 @@
+---
+title: "Data Cleaning and (preliminary) EDA"
+author: "Caleb Neale"
+date: "Spring 2021"
+output:
+  pdf_document: default
+  html_notebook: default
+subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
+---
+
+# Load libraries 
+```{r}
+library(tidyverse)
+library(lubridate)
+library(fpp3)
+```
+
+# Import Data and convert to tibble
+```{r}
+co2 <- read.csv('co2.csv', sep=";", row.names = NULL)
+occupied_status <- read.csv('occupied_status.csv', sep=";", row.names = NULL)
+supply_air_flow <- read.csv('supply_air_flow.csv', sep=";", row.names = NULL)
+supply_fan <- read.csv('supply_fan.csv', sep=";", row.names = NULL)
+temperature <- read.csv('temperature.csv', sep=";", row.names = NULL)
+
+colnames(co2) <- c("series", 'time','co2_value')
+co2<- co2[-1,]
+
+colnames(occupied_status) <- c("series", 'time','occupied_status')
+occupied_status<- occupied_status[-1,]
+
+colnames(supply_air_flow) <- c("series", 'time','supply_air_flow')
+supply_air_flow<- supply_air_flow[-1,]
+
+colnames(supply_fan) <- c("series", 'time','supply_fan')
+supply_fan<- supply_fan[-1,]
+
+colnames(temperature) <- c("series", 'time','temperature')
+temperature<- temperature[-1,]
+
+
+co2 <- as_tibble(co2)
+occupied_status <- as_tibble(occupied_status)
+supply_air_flow <- as_tibble(supply_air_flow)
+supply_fan <- as_tibble(supply_fan)
+temperature <- as_tibble(temperature)
+
+```
+
+# Convert time data to datetime format
+```{r}
+
+convert_to_datetime <- function(df){
+  df$time <- gsub("-04:00$", "-0400", df$time)
+  df$time <- gsub("-05:00$", "-0500", df$time)
+  df$time <- strptime(df$time, format ="%Y-%m-%dT%H:%M:%S%z")
+  return(df)
+}
+
+co2 <- convert_to_datetime(co2)
+occupied_status <- convert_to_datetime(occupied_status)
+supply_air_flow <- convert_to_datetime(supply_air_flow)
+supply_fan <- convert_to_datetime(supply_fan)
+temperature <- convert_to_datetime(temperature)
+
+```
+
+# Convert to tsibble objects
+```{r}
+co2 <- as_tsibble(co2, key= series, index = time)
+occupied_status <- as_tsibble(occupied_status, key= series, index = time)
+supply_air_flow <- as_tsibble(supply_air_flow, key= series, index = time)
+supply_fan <- as_tsibble(supply_fan, key= series, index = time)
+temperature <- as_tsibble(temperature, key= series, index = time)
+
+```
+
+# Merge Tables on the time column
+```{r}
+# tbd, need strategies for doing this or if it is even a good idea
+
+```
+
+# EDA
+```{r}
+boxplot(as.numeric(co2$co2_value))
+```
+
