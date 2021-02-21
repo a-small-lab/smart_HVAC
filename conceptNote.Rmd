@@ -26,7 +26,7 @@ In order to leverage timeseries analysis in this pursuit, the goal can be subdiv
 1. Detailed data on HVAC system operation (some data available, pending further exploration)
 2. Data on CO2, temperature, humidity, occupancy, and other selected metrics (available through living link lab)
 
-###
 
+Once both phases of anlaysis are complete and system dynamics are adequately understood, simulation can be used to develop an optimized control mechanism to minimize energy usage while maintaining occupant safety. 
 
 
