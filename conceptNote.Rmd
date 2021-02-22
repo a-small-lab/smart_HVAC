@@ -7,12 +7,12 @@ output: pdf_document
 ---
 ---
 
-In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental and occupancy data available for analysis. This presents an opportunity for detailed study of the performance of HVAC systems among multiple metrics outside of temperature and humidity, as well as the deeper consideration of potential energy savings which could be gained from a holistically "smart" HVAC system. The overall goal of such an analysis would be to minimize energy usage while still maintaining an optimally comfortable environment for any potential occupants of the building. 
+In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental and occupancy data available for analysis. This presents an opportunity for detailed study of the performance of HVAC systems among multiple metrics outside of temperature and humidity, as well as the deeper consideration of potential energy savings which could be gained from a holistically "smart" HVAC system which can consider multiple metrics of occupant comfort, as well as whether a given room even has occupants which require comfort. The overall goal of the project would be to minimize energy usage while still maintaining an optimally comfortable environment for any potential occupants of the building. 
 
-In order to leverage timeseries analysis in this pursuit, the goal can be subdivided into two parts:
+In order to leverage timeseries analysis in this pursuit, the goal can be subdivided into two questions:
 
-1. Analyze how various "levers" of operation of the HVAC system affect energy consumption
-2. Analyze how various "levers" of operation of the HVAC system affect the collected metrics of comfortability
+- How do operation status indicators of HVAC system affect energy consumption?
+- How do operation status indicators of HVAC system affect the collected metrics of comfortability?
 
 
 ### The data requirements of the first part would be:
