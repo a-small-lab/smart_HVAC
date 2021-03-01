@@ -41,6 +41,7 @@ convert_to_datetime <- function(df){
   df$time <- gsub("-04:00$", "-0400", df$time)
   df$time <- gsub("-05:00$", "-0500", df$time)
   df$time <- strptime(df$time, format ="%Y-%m-%dT%H:%M:%S%z")
+  df$time <- as.POSIXct(df$time)
   return(df)
 }
 
@@ -62,15 +63,37 @@ temperature <- as_tsibble(temperature, key= series, index = time)
 
 ```
 
-# Merge Tables on the time column
+# Investigate data in series columns
 ```{r}
-# tbd, need strategies for doing this or if it is even a good idea
+co2 %>% count(series)
+
+supply_air_flow %>% count(series)
+
+supply_fan %>% count(series)
+
+temperature %>% count(series)
+
+occupied_status %>% count(series)
 
 ```
+Co2 data is only provided for 6 rooms: Olsson 203, 211, 213, 217, 221, 225. Investiating whether additional rooms are available. 
 
-# EDA
+Supply_air_flow contains data for 45 rooms in Olsson hall, as well as setpoint data for each room. (Note: Investigate documentation for definition of setpoint data)
+
+Supply_fan_status is given for both HVAC units; the nature of the time intervals of the supply generating process is still under investigation. 
+
+Temperature is given for 44 rooms in Olsson, all but the generic "2nd floor" label which was fond in the supply_air_flow table. There is no setpoint data provided here. 
+
+Occupied_status is given for both HVAC units. As the status is not given by room, I'm looking for documentation which shows what occupied_status means in the system. The nature of the time intervals of the supply generating process is still under investigation. 
+
+
+# Create rooms column by parsing from series column 
 ```{r}
-print(co2)
+co2$room = regmatches(x= co2$series, m=regexpr("([0-9]{3}) Olsson", co2$series))
+
+supply_air_flow$room = str_match(supply_air_flow$series, "[(](.+)[)]")[,2]
+
+temperature$room = str_match(temperature$series, "(([0-9]{3}) Olsson)|(C([0-9]{3}) Olsson)")
 
 ```
 
