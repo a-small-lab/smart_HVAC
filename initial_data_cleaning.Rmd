@@ -97,3 +97,18 @@ temperature$room = str_match(temperature$series, "(([0-9]{3}) Olsson)|(C([0-9]{3
 
 ```
 
+There exists a mapping from HVAC unit to rooms which could be used to relate observations on the room level and observations on the system level (e.g. which rooms are recievin supply at a given time based on supply_status data)
+
+# Final Table Design
+
+Key: room, Index: time
+Observations: c02, occupied status, supply air flow, supply fan, temperature, supply air flow setpoint
+
+## Remaining tasks
+
+- ?? From every row of supply_fan, create a row for each room which maps to that HVAC unit with the correct supply_status
+- Obtain more detailed documentation on occupied_status to determine if above approach would be appropriate, apply as necessary
+- Determine binning strategy for 
+- Merge tsibbles to create final tsibble
+_ 
+
