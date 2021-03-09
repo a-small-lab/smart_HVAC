@@ -20,6 +20,8 @@ library(fpp3)
 read_and_clean <- function(csv_path){
   df <- read.csv(csv_path, sep=";", row.names = NULL)
   colnames(df) <- c("series", 'time','value')
+  
+  # NAs will be induced by following line, seems like this occurs when the value in the 'value' column == null
   df$value <- as.numeric(df$value)
   df<- df[-1,]
   df <- as_tibble(df)
@@ -28,9 +30,20 @@ read_and_clean <- function(csv_path){
 
 co2 <- read_and_clean('co2.csv')
 occupied_status <- read_and_clean('occupied_status.csv')
+occupied_status$value <- as.factor(occupied_status$value)
 supply_air_flow <- read_and_clean('supply_air_flow.csv')
 supply_fan <- read_and_clean('supply_fan.csv')
+supply_fan$value <- as.factor(supply_fan$value)
 temperature <- read_and_clean('temperature.csv')
+
+```
+# Check for NaN
+```{r}
+sum((occupied_status$value))
+sum(is.na(co2$value))
+sum(is.na(supply_air_flow$value)) # lot of NAs (over 32000)
+sum(is.na(supply_fan$value))
+sum(is.na(temperature$value)) # lot of NAs (over 15000)
 
 ```
 
@@ -53,21 +66,12 @@ temperature <- convert_to_datetime(temperature)
 
 ```
 
-# Convert to tsibble objects
-```{r}
-co2 <- as_tsibble(co2, key= series, index = time)
-occupied_status <- as_tsibble(occupied_status, key= series, index = time)
-supply_air_flow <- as_tsibble(supply_air_flow, key= series, index = time)
-supply_fan <- as_tsibble(supply_fan, key= series, index = time)
-temperature <- as_tsibble(temperature, key= series, index = time)
-
-```
 
 # Investigate data in series columns
 ```{r}
-co2 %>% count(series)
+co2 %>% count(series) 
 
-supply_air_flow %>% count(series)
+supply_air_flow %>% count(value)
 
 supply_fan %>% count(series)
 
@@ -115,11 +119,20 @@ table(AHU_2W)
 table(c(AHU_2E, AHU_2W))
 
 ```
+
+# Parse equipment names from series column
+```{r}
+occupied_status$equiment <- str_match(occupied_status$series, "AHU2[EW]")
+supply_fan$equipment <- str_match(supply_fan$series, "AHU2[EW]")
+```
+
+
 # Final Table Designs
 
 ## Table for analysis of system dynamics and energy consumption
 
-Key: HVAC unit, index: time (3 hour intervals? pending documentation)
+Key: HVAC unit
+Index: time (3 hour intervals? pending documentation)
 Observations: supply air flow (aggregated by HVAC unit), supply air flow set-point (aggregated by HVAC unit), supply fan, energy use (calculated)
 
 
@@ -142,7 +155,26 @@ colnames(unstacked_supply_air) <- c("time", "setpoint", "value", "room")
 
 ```
 
+### Aggregate flow and set point by HVAC unit
+```{r}
+unstacked_supply_air <- as_tsibble(unstacked_supply_air, key= room, index = time)
+library(dplyr)
 
+unstacked_supply_air %>% filter(room %in% AHU_2E) -> air_supply_AHU_2E
+unstacked_supply_air %>% filter(room %in% AHU_2W) -> air_supply_AHU_2W
+
+aggregated_AHU_2E <- aggregate(cbind(air_supply_AHU_2E$setpoint, air_supply_AHU_2E$value), by=list(time=air_supply_AHU_2E$time), FUN=sum)
+
+aggregated_AHU_2W <- aggregate(cbind(air_supply_AHU_2W$setpoint, air_supply_AHU_2W$value), by=list(time=air_supply_AHU_2W$time), FUN=sum)
+
+colnames(aggregated_AHU_2E) = c("time", "setpoint", "air_supply")
+colnames(aggregated_AHU_2W) = c("time", "setpoint", "air_supply")
+
+inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E", ".AHU2W")) -> unit_supply_air
+
+```
+
+### Feed forward supply_fan data
 
 ## Table for analysis of system dynamics and room comfort
 
@@ -151,11 +183,13 @@ Observations: c02, occupied status, supply air flow, supply fan, temperature, su
 
 
 
-## Remaining tasks
+# Convert to tsibble objects
+```{r}
+co2 <- as_tsibble(co2, key= series, index = time)
+occupied_status <- as_tsibble(occupied_status, key= series, index = time)
+supply_air_flow <- as_tsibble(supply_air_flow, key= room, index = time)
+supply_fan <- as_tsibble(supply_fan, key= series, index = time)
+temperature <- as_tsibble(temperature, key= series, index = time)
 
-- ?? From every row of supply_fan, create a row for each room which maps to that HVAC unit with the correct supply_status
-- Obtain more detailed documentation on occupied_status to determine if above approach would be appropriate, apply as necessary
-- Determine binning strategy for 
-- Merge tsibbles to create final tsibble
-_ 
+```
 
