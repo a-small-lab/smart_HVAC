@@ -16,7 +16,7 @@ library(fpp3)
 ```
 
 # Import Data and convert to tibble
-```{r}
+```{r warning=FALSE}
 read_and_clean <- function(csv_path){
   df <- read.csv(csv_path, sep=";", row.names = NULL)
   colnames(df) <- c("series", 'time','value')
@@ -39,7 +39,7 @@ temperature <- read_and_clean('temperature.csv')
 ```
 # Check for NaN
 ```{r}
-sum((occupied_status$value))
+sum(is.na(occupied_status$value))
 sum(is.na(co2$value))
 sum(is.na(supply_air_flow$value)) # lot of NAs (over 32000)
 sum(is.na(supply_fan$value))
@@ -135,10 +135,10 @@ Key: HVAC unit
 Index: time (3 hour intervals? pending documentation)
 Observations: supply air flow (aggregated by HVAC unit), supply air flow set-point (aggregated by HVAC unit), supply fan, energy use (calculated)
 
-
+Data cleaning tasks:
 - Unstack supply_air_flow data such that there is a column for value and a column for set-point for each room at each time-stamp
 - Aggregate flow and set-point values for each HVAC unit to create an HVAC unit value at each time-stamp
-- For every three hour interval, assign the supply fan status column to the most recent value from supply_fan
+- For every three hour interval, assign the supply fan status column to the most recent value from supply_fan for each AHU
 - Calculate energy consumption and input into final column 
 
 ### Unstack supply_air_flow
@@ -175,6 +175,58 @@ inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E"
 ```
 
 ### Feed forward supply_fan data
+```{r}
+# create df where columns are time, AHU2E status, AHU2W status
+supply_fan %>% filter(equipment == "AHU2E") -> AHU2E_supply_fan
+supply_fan %>% filter(equipment == "AHU2W") -> AHU2W_supply_fan
+
+unstacked_fan = full_join(AHU2E_supply_fan, AHU2W_supply_fan, by=c("time"))
+unstacked_fan = as.data.frame(unstacked_fan)
+
+unstacked_fan %>% select(2,3,6) -> unstacked_fan
+colnames(unstacked_fan) = c("time", "AHU2E_status", "AHU2W_status")
+unstacked_fan$time = as.POSIXlt(unstacked_fan$time)
+
+# up fill dataset 
+unstacked_fan %>% fill(AHU2E_status, .direction ="up") -> unstacked_fan
+unstacked_fan %>% fill(AHU2W_status, .direction ="up") -> unstacked_fan
+
+
+# for every time in ustacked_fan, find closest time in unit_supply_air after said time
+time_difference = function(time, times){
+  differences = as.data.frame(times - time)
+  colnames(differences) = c("value")
+  pos_differences = filter(temp, value > 0)$value 
+  pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
+  rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
+  unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_fan_status"]
+
+  unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_fan_status"]
+}
+
+times = unit_supply_air$time
+
+for (time in unstacked_fan$time) {
+  print(time)
+  # time_difference(time, times)
+}
+
+# at that found time, add the values of AHU2E status + AHU2W status
+
+
+
+temp = as.data.frame(times - times[200])
+colnames(temp) = c("value")
+pos_differences = filter(temp, value > 0)$value 
+pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
+rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
+
+unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_fan_status"]
+
+unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_fan_status"]
+
+```
+
 
 ## Table for analysis of system dynamics and room comfort
 
