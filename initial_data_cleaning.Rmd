@@ -175,7 +175,7 @@ inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E"
 ```
 
 ### Feed forward supply_fan data
-```{r}
+```{r, eval=FALSE}
 # create df where columns are time, AHU2E status, AHU2W status
 supply_fan %>% filter(equipment == "AHU2E") -> AHU2E_supply_fan
 supply_fan %>% filter(equipment == "AHU2W") -> AHU2W_supply_fan
@@ -192,36 +192,32 @@ unstacked_fan %>% fill(AHU2E_status, .direction ="up") -> unstacked_fan
 unstacked_fan %>% fill(AHU2W_status, .direction ="up") -> unstacked_fan
 
 
-# for every time in ustacked_fan, find closest time in unit_supply_air after said time
-time_difference = function(time, times){
-  differences = as.data.frame(times - time)
-  colnames(differences) = c("value")
-  pos_differences = filter(temp, value > 0)$value 
-  pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
-  rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
-  unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_fan_status"]
-
-  unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_fan_status"]
-}
+# time_difference = function(time, times){
+#   differences = as.data.frame(times - time)
+#   colnames(differences) = c("value")
+#   pos_differences = filter(temp, value > 0)$value 
+#   pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
+#   rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
+#   unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_status"]
+# 
+#   unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_status"]
+# }
 
 times = unit_supply_air$time
 
-for (time in unstacked_fan$time) {
-  print(time)
-  # time_difference(time, times)
-}
+# for (time in unstacked_fan$time) {
+#  time_difference(time, times)
+# }
 
 # at that found time, add the values of AHU2E status + AHU2W status
 
-
-
-temp = as.data.frame(times - times[200])
+temp = as.data.frame(times - unstacked_fan$time[100])
 colnames(temp) = c("value")
 pos_differences = filter(temp, value > 0)$value 
 pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
 rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
 
-unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_fan_status"]
+unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==unstacked_fan$time[100], "AHU2W_status"]
 
 unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_fan_status"]
 
