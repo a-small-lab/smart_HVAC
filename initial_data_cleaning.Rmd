@@ -9,6 +9,48 @@ subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
 editor_options: 
   chunk_output_type: inline
 ---
+# HVAC System Summary
+System diagram + data accessible through: http://icoweb.fm.virginia.edu/anyglass/pubdisplay/UVa/Customers/LinkLab0202/Home.gdfx
+
+Acronyms decoded using below resources:
+- https://www.abraxasenergy.com/energy-resources/toolbox/hvac-acronyms/
+- https://github.com/uva-eng-time-series-sp21/neale-caleb/blob/main/HVAC_System_Documentation/141602%20-%20M0.0.pdf
+
+
+### For each air handling unit we have:
+
+-Temperature data (deg F):
+ - RA-T; Return Air
+ - SA-T; Supply Air
+ - PH-T; Pre-Heat Air
+ - MA-T; Mixed Air
+
+- Fans (logical on/off, Variable Frequency Drive perecntage):
+  - R-FN; Return Fan
+  - S-FN; Supply Fan
+
+- Humidity:
+  - RA-H; Return Air (% rel. humidity)
+
+- Ducts:
+  - EXH-D; Exhaust (%, open? documentation unclear)
+  - OA-D; Outside Air (%, open? documentation unclear)
+
+- Heating/Cooling:
+  - PH-V; Pre-Heat Valve (% Open)
+  - CHW-V; Chilled Water Valve (% Open)
+
+- Occupied (logical 0/1)
+
+### For each room we have:
+- HW-V; Hot Water Valve (%, open? documentation unclear)
+- SA-T; Supply Air Temperature (73.3 deg F)
+- SA-F; Supply Air Flow (CFM)
+- SA-F-SP; Supply Air Flow Set-Point
+- ZN-T; Unconfirmed but appears to be temperature set-point (deg F)
+- Temperature (deg C)
+- co2 (only select rooms, PPM)
+
 
 # Load libraries 
 ```{r, message=FALSE, warning=FALSE}
@@ -73,7 +115,7 @@ temperature <- convert_to_datetime(temperature)
 ```{r}
 co2 %>% count(series) 
 
-supply_air_flow %>% count(value)
+supply_air_flow %>% count(series)
 
 supply_fan %>% count(series)
 
@@ -82,8 +124,7 @@ temperature %>% count(series)
 occupied_status %>% count(series)
 
 ```
-Co2 data is only provided for 6 rooms: Olsson 203, 211, 213, 217, 221, 225. Investigating whether additional rooms are available. 
-<!-- I'm guessing not: CO2 sensors are more expensive. -->
+Co2 data is only provided for 6 rooms: Olsson 203, 211, 213, 217, 221, 225. 
 
 Supply_air_flow contains data for 45 rooms in Olsson hall, as well as set-point data for each room. (Note: Investigate documentation for definition of set-point data)
 
@@ -103,15 +144,13 @@ supply_air_flow$room = str_match(supply_air_flow$series, "C[0-9]{3}|[0-9]{3}")
 temperature$room = str_match(temperature$series, "C[0-9]{3}|[0-9]{3}")
 ```
 
-There exists a mapping from HVAC unit to rooms 
-<!-- Identify the data source for this mapping. -->
-which could be used to relate observations on the room level and observations on the system level (e.g. which rooms are receiving supply at a given time based on supply_status data).
+There exists a mapping from HVAC unit to rooms in the plans for the HVAC system (HVAC_System_Documentation folder in file "141605 - M0.3.pdf", tables on right side) which could be used to relate observations on the room level and observations on the system level (e.g. which rooms are receiving supply at a given time based on supply_status data).
 
 
 # Create room assignment vectors for each HVAC unit
 
 ```{r}
-AHU_2E <- c(241, 243, 245, 247, 249, 251, 253, 257, 255, 259, 263, 261, 240, "C244", 244, 260, 213, 217, 225, 218, "C230", 220, "C210", "T212", "T218", "C216", "C214", "T210", 256, 229, 231, 223, 225, "C227", "C211", 254, "C250", 258) 
+AHU_2E <- c(241, 243, 245, 247, 249, 251, 253, 257, 255, 259, 263, 261, 240, "C244", 244, 260, 213, 217, 225, 218, "C230", 220, "C210", "T212", "T218", "C216", "C214", "T210", 256, 229, 231, 223, "C227", "C211", 254, "C250", 258) 
 
 AHU_2W <- c(269, 267, 265, 273, 271, 275, 277, 279, 281, 283, 285, 274, 286, 204, 208, 272, 270, "C260", "C200", "C201", 203, 276, "C280", "C270", 211, 201)
 
@@ -122,8 +161,7 @@ rooms_tbl %>% group_by(room) %>% count() %>% filter(n>1) -> dupes
 
 print(dupes)
 ```
-A single room, `r dupes$room`, is served by both HVAC units.
-
+No duplicates.
 
 # Parse equipment names from series column
 ```{r}
@@ -134,7 +172,6 @@ supply_fan$equipment     <- str_match(supply_fan$series, "AHU2[EW]")
 
 # Table Designs
 
-<!-- ## Table for analysis of system dynamics and energy consumption -->
 
 ## Table for room-specific indoor environmental quality data
 
@@ -163,27 +200,6 @@ supply_air_flow %>% filter(grepl("Setpoint", series)) -> supply_air_flow_setpoin
 supply_air_flow %>% filter(!grepl("Setpoint", series)) -> supply_air_flow
 ```
 
-```{r check for duplicate records for room 225}
-supply_air_flow %>% 
-  filter(room == dupes$room) %>%
-  group_by(time) %>%
-  count() %>%
-  filter(n>1)
-
-supply_air_flow %>% 
-  filter(room == dupes$room) %>%
-  arrange(time)
-
-supply_air_flow_setpoints %>% 
-  filter(room == dupes$room) %>%
-  group_by(time) %>%
-  count() %>%
-  filter(n>1)
-
-supply_air_flow_setpoints %>% 
-  filter(room == dupes$room) %>%
-  arrange(time)
-```
 
 ```{r join ieq data to unified table}
 co2 %>%
@@ -208,9 +224,6 @@ full_join(co2_ts, temperature_ts, by=c("time", "room")) %>%
 
 print(ieq_tbl)
 ```
-```{r check for duplicate entries}
-ieq_tbl %>% filter(room == dupes$room) %>% arrange(time)
-```
 
 ## Table of equipment operational data
 
@@ -221,6 +234,7 @@ Keys: HVAC equipment code
 Observations: 
  * supply fan (logical)
  * occupancy status (logical)
+ * aggregated air flow (ft^3/min)
  
 ```{r}
 supply_fan %>%
@@ -261,9 +275,39 @@ colnames(unstacked_supply_air) <- c("time", "setpoint", "value", "room")
 
 ** Q: How does energy consumption related to reported values of system operations -- esp. supply air flow, supply fan status, occupied status? **
 
-### Aggregate flow and set point by HVAC unit
+#### Formulae
 
-<!-- Are you sure this aggregation operation is appropriate? How do these aggregated values relate to energy consumption? -->
+SEER = BTU/Watt-Hours = total change in heat energy in conditioned space divided by energy consumed to condition space
+
+##### For heating:
+
+BTU/hr = C * del(T) * M
+
+Where:
+- C is the specific heat of air (approx. 1 kJ/Kg*K)
+- del(T) is the change in temperature
+- M is the mass of air = rho*V, using an approximate density of 1.2 Kg/m^3
+- Given our data an adjustment will also have to be made to convert from cubic feet per **minute** to BTU per **hour**.
+
+##### For cooling, an additional term can be included in calculating BTU related to the removal of humidity:
+
+BTU/hr = C * del(T) * M + (0.68 * CFM * del(w_gr))
+
+Note about above: This concept makes sense but I have been unable to find sourcing outside of a blog post on an HVAC website. 
+
+- CFM = cubic feet per minute
+- del(w_gr) = change in humidiy ratio in grains
+
+I have been unable to locate a data source on the differential between supply and return air humidity so I will be excluding this term for now, with the potential for revisiting later as there is one measure of relative humidity as a part of return air that is available to glean information from. 
+
+#### Data
+
+Data to be exported from icoweb platform:
+
+- Temperature differential (del(T)) can be calculated by finding the difference between relevant points in the AHU, which I believe to be supply and return air (RA-T minus SA-T)
+
+
+### Aggregate flow and set point by HVAC unit
 
 ```{r}
 unstacked_supply_air <- as_tsibble(unstacked_supply_air, key= room, index = time)
@@ -283,6 +327,7 @@ inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E"
 ```
 
 ### Feed forward supply_fan data
+I did finally get this to work, but further research into the factors which contribute to energy consumption suggest that supply fan status is not a significant contributor to energy consumption.
 ```{r, eval=FALSE}
 # create df where columns are time, AHU2E status, AHU2W status
 supply_fan %>% filter(equipment == "AHU2E") -> AHU2E_supply_fan
@@ -295,9 +340,9 @@ unstacked_fan %>% select(2,3,6) -> unstacked_fan
 colnames(unstacked_fan) = c("time", "AHU2E_status", "AHU2W_status")
 unstacked_fan$time = as.POSIXlt(unstacked_fan$time)
 
-# up fill dataset 
-unstacked_fan %>% fill(AHU2E_status, .direction ="up") -> unstacked_fan
-unstacked_fan %>% fill(AHU2W_status, .direction ="up") -> unstacked_fan
+# down fill dataset 
+unstacked_fan %>% fill(AHU2E_status, .direction ="down") -> unstacked_fan
+unstacked_fan %>% fill(AHU2W_status, .direction ="down") -> unstacked_fan
 
 
 time_difference = function(time, times){
@@ -307,8 +352,7 @@ time_difference = function(time, times){
     pos_differences = dplyr::filter(differences, value > 0)$value
     pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
     rel_time = times[which(differences$value == pos_differences[pos_diff_index])]
-    print(rel_time)
-    
+
     unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] <<- unstacked_fan[unstacked_fan$time==time, "AHU2W_status"]
     unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] <<- unstacked_fan[unstacked_fan$time==time, "AHU2E_status"]
   }
@@ -325,18 +369,9 @@ for (i in 1:length(unstacked_fan$time)) {
   time_difference(time, times)
 }
 
-# at that found time, add the values of AHU2E status + AHU2W status
-time = unstacked_fan$time[100]
-differences = as.data.frame(times - time)
-colnames(differences) = c("value")
-pos_differences = filter(differences, value > 0)$value 
-pos_diff_index = which(as.numeric(pos_differences) == min(as.numeric(pos_differences)))
-rel_time = times[which(temp$value == pos_differences[pos_diff_index])]
-
-unit_supply_air[unit_supply_air$time == rel_time,"AHU2W_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2W_status"]
-
-
-unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked_fan[unstacked_fan$time==time, "AHU2E_status"]
+# down fill dataset 
+unit_supply_air %>% fill(AHU2E_fan_status, .direction ="down") -> unit_supply_air
+unit_supply_air %>% fill(AHU2W_fan_status, .direction ="down") -> unit_supply_air
 
 ```
 
@@ -344,6 +379,7 @@ unit_supply_air[unit_supply_air$time == rel_time,"AHU2E_fan_status"] = unstacked
 
 
 ## Table for analysis of system dynamics and room comfort
+This analysis is being set aside for a later time
 
 Key: room, Index: time
 
