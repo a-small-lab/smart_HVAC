@@ -3,23 +3,25 @@ title: "Data Cleaning and (preliminary) EDA"
 author: "Caleb Neale"
 date: "Spring 2021"
 output:
-  html_notebook: default
   pdf_document: default
+  html_notebook: default
 subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
 editor_options: 
   chunk_output_type: inline
 ---
 # HVAC System Summary
-System diagram + data accessible through: http://icoweb.fm.virginia.edu/anyglass/pubdisplay/UVa/Customers/LinkLab0202/Home.gdfx
+System diagram + data accessible through:
+http://icoweb.fm.virginia.edu/anyglass/pubdisplay/UVa/Customers/LinkLab0202/Home.gdfx
 
 Acronyms decoded using below resources:
-- https://www.abraxasenergy.com/energy-resources/toolbox/hvac-acronyms/
-- https://github.com/uva-eng-time-series-sp21/neale-caleb/blob/main/HVAC_System_Documentation/141602%20-%20M0.0.pdf
+
+ - https://www.abraxasenergy.com/energy-resources/toolbox/hvac-acronyms/
+ - https://github.com/uva-eng-time-series-sp21/neale-caleb/blob/main/HVAC_System_Documentation/141602%20-%20M0.0.pdf
 
 
 ### For each air handling unit we have:
 
--Temperature data (deg F):
+- Temperature data (deg F):
  - RA-T; Return Air
  - SA-T; Supply Air
  - PH-T; Pre-Heat Air
@@ -187,6 +189,7 @@ Observations:
  * supply air flow set-point (ft^3 s-1), 
 
 Data cleaning tasks:
+
 - Unstack supply_air_flow data such that there is a column for value and a column for set-point for each room at each time-stamp
 - Aggregate flow and set-point values for each HVAC unit to create an HVAC unit value at each time-stamp
 - For every three hour interval, assign the supply fan status column to the most recent value from supply_fan for each AHU
@@ -232,6 +235,7 @@ Index: date-time, irregular time intervals
 Keys: HVAC equipment code
 
 Observations: 
+
  * supply fan (logical)
  * occupancy status (logical)
  * aggregated air flow (ft^3/min)
@@ -279,6 +283,7 @@ colnames(unstacked_supply_air) <- c("time", "setpoint", "value", "room")
 
 SEER = BTU/Watt-Hours = total change in heat energy in conditioned space divided by energy consumed to condition space
 
+
 ##### For heating:
 
 BTU/hr = C * del(T) * M
@@ -288,6 +293,7 @@ Where:
 - del(T) is the change in temperature
 - M is the mass of air = rho*V, using an approximate density of 1.2 Kg/m^3
 - Given our data an adjustment will also have to be made to convert from cubic feet per **minute** to BTU per **hour**.
+
 
 ##### For cooling, an additional term can be included in calculating BTU related to the removal of humidity:
 
@@ -299,6 +305,7 @@ Note about above: This concept makes sense but I have been unable to find sourci
 - del(w_gr) = change in humidiy ratio in grains
 
 I have been unable to locate a data source on the differential between supply and return air humidity so I will be excluding this term for now, with the potential for revisiting later as there is one measure of relative humidity as a part of return air that is available to glean information from. 
+
 
 #### Data
 
@@ -325,6 +332,12 @@ colnames(aggregated_AHU_2W) = c("time", "setpoint", "air_supply")
 inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E", ".AHU2W")) -> unit_supply_air
 
 ```
+
+### Calculate estimated energy usage
+```{r}
+
+```
+
 
 ### Feed forward supply_fan data
 I did finally get this to work, but further research into the factors which contribute to energy consumption suggest that supply fan status is not a significant contributor to energy consumption.
@@ -374,8 +387,6 @@ unit_supply_air %>% fill(AHU2E_fan_status, .direction ="down") -> unit_supply_ai
 unit_supply_air %>% fill(AHU2W_fan_status, .direction ="down") -> unit_supply_air
 
 ```
-
-
 
 
 ## Table for analysis of system dynamics and room comfort
