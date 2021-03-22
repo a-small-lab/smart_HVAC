@@ -82,8 +82,7 @@ temperature %>% count(series)
 occupied_status %>% count(series)
 
 ```
-Co2 data is only provided for 6 rooms: Olsson 203, 211, 213, 217, 221, 225. Investigating whether additional rooms are available. 
-<!-- I'm guessing not: CO2 sensors are more expensive. -->
+Co2 data is only provided for 6 rooms: Olsson 203, 211, 213, 217, 221, 225. 
 
 Supply_air_flow contains data for 45 rooms in Olsson hall, as well as set-point data for each room. (Note: Investigate documentation for definition of set-point data)
 
@@ -103,9 +102,7 @@ supply_air_flow$room = str_match(supply_air_flow$series, "C[0-9]{3}|[0-9]{3}")
 temperature$room = str_match(temperature$series, "C[0-9]{3}|[0-9]{3}")
 ```
 
-There exists a mapping from HVAC unit to rooms 
-<!-- Identify the data source for this mapping. -->
-which could be used to relate observations on the room level and observations on the system level (e.g. which rooms are receiving supply at a given time based on supply_status data).
+There exists a mapping from HVAC unit to rooms in the plans for the HVAC system (HVAC_System_Documentation folder in file "141605 - M0.3.pdf", tables on right side) which could be used to relate observations on the room level and observations on the system level (e.g. which rooms are receiving supply at a given time based on supply_status data).
 
 
 # Create room assignment vectors for each HVAC unit
@@ -163,27 +160,6 @@ supply_air_flow %>% filter(grepl("Setpoint", series)) -> supply_air_flow_setpoin
 supply_air_flow %>% filter(!grepl("Setpoint", series)) -> supply_air_flow
 ```
 
-```{r check for duplicate records for room 225}
-supply_air_flow %>% 
-  filter(room == dupes$room) %>%
-  group_by(time) %>%
-  count() %>%
-  filter(n>1)
-
-supply_air_flow %>% 
-  filter(room == dupes$room) %>%
-  arrange(time)
-
-supply_air_flow_setpoints %>% 
-  filter(room == dupes$room) %>%
-  group_by(time) %>%
-  count() %>%
-  filter(n>1)
-
-supply_air_flow_setpoints %>% 
-  filter(room == dupes$room) %>%
-  arrange(time)
-```
 
 ```{r join ieq data to unified table}
 co2 %>%
@@ -207,9 +183,6 @@ full_join(co2_ts, temperature_ts, by=c("time", "room")) %>%
   full_join(supply_air_flow_setpoints_ts, by=c("time", "room")) -> ieq_tbl
 
 print(ieq_tbl)
-```
-```{r check for duplicate entries}
-ieq_tbl %>% filter(room == dupes$room) %>% arrange(time)
 ```
 
 ## Table of equipment operational data
