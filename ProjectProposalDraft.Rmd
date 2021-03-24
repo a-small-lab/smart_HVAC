@@ -1,0 +1,113 @@
+---
+title: "Project Proposal (Draft)"
+author: "Caleb Neale"
+date: "Spring 2021"
+output:
+  pdf_document: default
+  html_notebook: default
+subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Introduction
+
+In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental, occupancy data, and HVAC system operational data available for analysis. This presents an opportunity for a detailed case study of the performance of an HVAC system among multiple metrics outside of just temperature and humidity with the intention of improving HVAC control systems' ability to maintain occupant comfort with reduced energy consumption. Investigation of multiple metrics of occupant comfort, whether a given room even has occupants which require comfort, various metrics of system operation, and energy consumption consumption (actual or calculated) has the potential to produce a environmental model which may aid in the development of an improved policy for the HVAC system control problem. 
+
+Considering HVAC usage accounts for 30% of total commercial building energy consumption (US Dept. of Energy Commissioned Report on Energy Savings Potential and RD&D Opportunities for Commercial Building HVAC Systems, 2017), there is significant environmental and economic incentive to reducing the energy load of HVAC systems both for regulators and commercial operators. This same commissioned report cites "Technology Enhancements for Current Systems" as one of four groups of high priority technology options, with  "Advanced HVAC Sensors" as the top ranked technology within this category at an estimated Technical Energy Savings Potential (Quadrillion BTU/yr.) of 0.63, lending particular credence to the idea that advanced sensing combined with more efficient control could be a significant contributor to reduced HVAC system burden on energy resources.
+
+This project seeks to investigate if it possible to create a more efficient control policy for HVAC systems by first effectively modeling the relationships between system operation, energy consumption, and metrics of occupant comfort.
+
+
+# Methodology?
+
+In order to leverage time series analysis to answer this question, this project will investigate:
+
+- How HVAC system operation affects energy consumption over time 
+- How HVAC system operation affect the collected metrics of comfort over time
+
+##  HVAC System Operation and Energy Consumption
+
+The first portion of the project, focused on HVAC operation and energy consumption, requires the collection and organization of data related to HVAC system operation for each air handling unit, including:
+
+- Temperature data (deg F):
+ - Return Air
+ - Supply Air
+
+- Humidity:
+  - Return Air (% rel. humidity)
+
+- Heating/Cooling:
+  - Pre-Heat Valve (% Open)
+  - Chilled Water Valve (% Open)
+
+- Energy Consumption (Calculated from above if not available)
+
+- Supply Air Volume (ft^3/min)
+
+- Air Handling Unit SEER
+
+### Calculation of energy consumption using SEER ratio
+
+SEER = BTU/Watt-Hours = total change in heat energy in conditioned space divided by energy consumed to condition space
+
+
+#### Calculating BTU/hr for heating operation\
+BTU/hr = C * del(T) * M\
+
+Where:
+
+- C is the specific heat of air (approx. 1 kJ/Kg*K)
+- del(T) is the change in temperature
+- M is the mass of air = rho*V, using an approximate density of 1.2 Kg/m^3
+- Given our data an adjustment will also have to be made to convert from cubic feet per **minute** to BTU per **hour**.
+
+
+#### Calculating BTU/hr for cooling operation\
+An additional term can be included in calculating BTU related to the removal of humidity:\
+
+BTU/hr = C * del(T) * M + (0.68 * CFM * del(w_gr))
+
+Where:
+
+- CFM = airflow in cubic feet per minute
+- del(w_gr) = change in humidity ratio in grains
+
+Data is not currently available on humidity removal, so the heating methodology will be applied as an estimated of energy consumption under cooling operaiton. 
+
+
+## HVAC System Operation and Collected Metrics of Comfort
+
+The second portion of the project, focused on HVAC operation and comfort, requires the collection and organization of data related to HVAC system operation for each air handling unit and room status indicators for all rooms serviced by an air handling unit including:
+
+1. Detailed data on HVAC system operation
+2. Data on CO2, temperature, humidity, occupancy, and other selected metrics 
+
+This analysis will be set aside for now, pending later investigation.
+
+## Improving HVAC System Control Policy
+
+Once both phases of analysis are complete and system dynamics are adequately understood, simulation can be used to develop an optimized control mechanism to minimize energy usage while maintaining occupant safety.
+
+
+# Exploratory Data Analysis
+
+# Data and Data Generating Process
+
+
+# Links to sources
+- US DOE Report: https://www.energy.gov/sites/prod/files/2017/12/f46/bto-DOE-Comm-HVAC-Report-12-21-17.pdf - BTU formulae: 
+  - https://www.advantageengineering.com/fyi/288/pdf/advantageIndustrialFormulas.pdf
+  - https://www.engineeringtoolbox.com/cooling-heating-equations-d_747.html
+  - https://www.energyvanguard.com/blog/converting-heating-and-cooling-loads-air-flow-physics
+- SEER:
+  - https://www.sciencedirect.com/topics/engineering/seasonal-energy-efficiency-ratio#:~:text=The%20SEER%20rating%20is%20calculated,efficient%20the%20air%20conditioner%20is. 
+  https://www.ahrinet.org/App_Content/ahri/files/standards%20pdfs/ANSI%20standards%20pdfs/ANSI.AHRI%20Standard%20210.240%20with%20Addenda%201%20and%202.pdf
+- Supply Air Temperature: https://www.sciencedirect.com/topics/engineering/supply-air-temperature
+- General readings:
+  - https://onlinelibrary.wiley.com/doi/full/10.1111/ina.12496?casa_token=WXZVCDnNN9AAAAAA%3A-yxXhqtRRzBjY5bNRnOfwfIpDrbxLWxvaFWFe9TMt17Pbim5uxgKQn4R8EqDvDDaE3mU4svSIxvo9GP2
+  - https://www.sciencedirect.com/science/article/pii/S1474667016440887
+  - https://www.sciencedirect.com/science/article/pii/S1364032113004322?casa_token=UDbPZbtcuZwAAAAA:aR-hPKZ_P-eEZdsk3nO_pjKVmUum4RKqjDi43Jp4-mTD9MqAc5BhJFo7XG4b2qwNo0FLwpfvmWE
+
+
+
