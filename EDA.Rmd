@@ -6,9 +6,14 @@ output: pdf_document
 ---
 # Dataframes from data_cleaning.Rmd
 ```{r}
-equipment_ops_irreg_ts
+library(lubridate)
+library(ggplot2)
+library(feasts)
+library(plotly)
+
+equipment_ops_irreg_ts = as_tsibble(equipment_ops_irreg_ts, key=equipment, index = time)
 usa_stacked
-ieq_tbl
+ieq_tbl = as_tsibble(ieq_tbl, key= room, index=time)
 
 ```
 # Summary stats
@@ -28,5 +33,14 @@ boxplot(ieq_tbl %>% select(co2_ppm_mean, temperature_C, supply_air_flow_cfs, sup
 hist(ieq_tbl$temperature_C)
 hist(ieq_tbl$co2_ppm_mean)
 
+```
+# Plotting the timeseries
+```{r}
+ggplotly(autoplot(usa_stacked, air_supply))
+ggplotly(autoplot(usa_stacked, setpoint))
+ggplotly(autoplot(ieq_tbl, co2_ppm_mean))
+ggplotly(autoplot(ieq_tbl, temperature_C))
+ggplotly(autoplot(ieq_tbl, supply_air_flow_cfs))
+ggplotly(autoplot(equipment_ops_irreg_ts, occupied))
 ```
 
