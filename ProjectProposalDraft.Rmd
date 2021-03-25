@@ -9,6 +9,7 @@ subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
 editor_options: 
   chunk_output_type: inline
 ---
+# Abstract
 
 # Introduction
 
@@ -19,7 +20,7 @@ Considering HVAC usage accounts for 30% of total commercial building energy cons
 This project seeks to investigate if it possible to create a more efficient control policy for HVAC systems by first effectively modeling the relationships between system operation, energy consumption, and metrics of occupant comfort.
 
 
-# Methodology?
+# Data and Plan for Analysis
 
 In order to leverage time series analysis to answer this question, this project will investigate:
 
