@@ -49,6 +49,8 @@ The first portion of the project, focused on HVAC operation and energy consumpti
 
 ### Calculation of energy consumption using SEER ratio
 
+The below methodology is pending verification from UVA facilities experts.
+
 SEER = BTU/Watt-Hours = total change in heat energy in conditioned space divided by energy consumed to condition space
 
 
@@ -73,7 +75,7 @@ Where:
 - CFM = airflow in cubic feet per minute
 - del(w_gr) = change in humidity ratio in grains
 
-Data is not currently available on humidity removal, so the heating methodology will be applied as an estimated of energy consumption under cooling operaiton. 
+Data is not currently available on humidity removal, so the heating methodology will be applied as an estimated of energy consumption under cooling operation. 
 
 
 ## HVAC System Operation and Collected Metrics of Comfort
@@ -91,6 +93,7 @@ Once both phases of analysis are complete and system dynamics are adequately und
 
 
 # Exploratory Data Analysis
+
 
 # Data and Data Generating Process
 

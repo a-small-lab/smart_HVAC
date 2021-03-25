@@ -1,0 +1,32 @@
+---
+title: "EDA"
+author: "Caleb Neale"
+date: "3/24/2021"
+output: pdf_document
+---
+# Dataframes from data_cleaning.Rmd
+```{r}
+equipment_ops_irreg_ts
+usa_stacked
+ieq_tbl
+
+```
+# Summary stats
+```{r}
+summary(equipment_ops_irreg_ts)
+summary(usa_stacked)
+summary(ieq_tbl)
+```
+No eq operation information after January 11, 2021 for some reason
+
+# Summary viz
+```{r}
+boxplot(usa_stacked %>% as.data.frame() %>% select(air_supply, setpoint))
+hist(usa_stacked$air_supply)
+hist(usa_stacked$setpoint)
+boxplot(ieq_tbl %>% select(co2_ppm_mean, temperature_C, supply_air_flow_cfs, supply_air_flow_setpoint_cfs))
+hist(ieq_tbl$temperature_C)
+hist(ieq_tbl$co2_ppm_mean)
+
+```
+

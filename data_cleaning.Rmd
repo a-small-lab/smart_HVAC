@@ -333,6 +333,23 @@ inner_join(aggregated_AHU_2E, aggregated_AHU_2W, by=c("time"), suffix=c(".AHU2E"
 
 ```
 
+### Stack unit_supply_air
+```{r}
+stacked_setpoints = data.frame(unit_supply_air[1], stack(unit_supply_air[c(2,4)]))
+colnames(stacked_setpoints) = c('time', "setpoint", "equipment")
+stacked_setpoints$equipment = str_match(stacked_setpoints$equipment, "AHU2[EW]")
+
+stacked_air_supplies = data.frame(unit_supply_air[1], stack(unit_supply_air[c(3,5)]))
+colnames(stacked_air_supplies) = c('time', "air_supply", "equipment")
+stacked_air_supplies$equipment = str_match(stacked_air_supplies$equipment, "AHU2[EW]")
+
+usa_stacked = full_join(stacked_air_supplies, stacked_setpoints, by = c("time", "equipment"))
+usa_stacked = as_tsibble(usa_stacked, index=time, key=equipment)
+
+usa_stacked 
+
+```
+
 ### Calculate estimated energy usage
 ```{r}
 
