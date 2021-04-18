@@ -12,22 +12,71 @@ editor_options:
 # Abstract
 
 # Introduction
-
-In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental, occupancy data, and HVAC system operational data available for analysis. This presents an opportunity for a detailed case study of the performance of an HVAC system among multiple metrics outside of just temperature and humidity with the intention of improving HVAC control systems' ability to maintain occupant comfort with reduced energy consumption. Investigation of multiple metrics of occupant comfort, whether a given room even has occupants which require comfort, various metrics of system operation, and energy consumption consumption (actual or calculated) has the potential to produce a environmental model which may aid in the development of an improved policy for the HVAC system control problem. 
+In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental, occupancy data, and HVAC system operational data available for analysis. This presents an opportunity for a detailed case study of the performance of an HVAC system among multiple metrics outside of just temperature and humidity with the intention of improving HVAC control systems' ability to maintain occupant comfort with reduced energy consumption. Investigation of multiple metrics of occupant comfort, whether a given room even has occupants which require comfort, various metrics of system operation, and energy consumption consumption (actual and calculated) has the potential to produce a environmental model which may aid in the development of an improved policy for the HVAC system control problem. 
 
 Considering HVAC usage accounts for 30% of total commercial building energy consumption (US Dept. of Energy Commissioned Report on Energy Savings Potential and RD&D Opportunities for Commercial Building HVAC Systems, 2017), there is significant environmental and economic incentive to reducing the energy load of HVAC systems both for regulators and commercial operators. This same commissioned report cites "Technology Enhancements for Current Systems" as one of four groups of high priority technology options, with  "Advanced HVAC Sensors" as the top ranked technology within this category at an estimated Technical Energy Savings Potential (Quadrillion BTU/yr.) of 0.63, lending particular credence to the idea that advanced sensing combined with more efficient control could be a significant contributor to reduced HVAC system burden on energy resources.
 
-This project seeks to investigate if it possible to create a more efficient control policy for HVAC systems by first effectively modeling the relationships between system operation, energy consumption, and metrics of occupant comfort.
+This project will investigate the first phase of determining if it possible to create a more efficient control policy for HVAC systems by developing a model of energy consumption calculated from system operation metrics, validating this model with a limited amount of actual collected energy usage data, and attempting to forecast energy demand with this data.
 
+# The data and the data-generating process
+The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab, the unit of measure for this project. Additionally, local weather data on humidity and atmospheric pressure necessary for  calculations, and local temperature data, a potential predictor of consumption, will also be obtained. 
+
+## Data
+Index:
+Time, hourly
+
+Key:
+VAV box, HVAC Unit
+
+Values:
+- Output Air Temperature (deg C)
+- Input Air Temperature  (deg C)
+- Air Supply Flow (CFM)
+- Air Supply Flow Set point (CFM)
+- Local Temperature (deg C)
+- Local Humidity (%RH)
+- Local Air Pressure (kPA)
+- Enthalpy change (calculated, BTU)
+- Fan Energy Consumption (Calculated, BTU)
+- Total Energy Consumption (Calculated, BTU)
+
+Insert preview and graphs here
+
+## Data Generating Process
+
+### System Description and Terminology
+The HVAC system under consideration is a VAV (variable air volume) system which consists of two air handling units (AHU) and VAV boxes. VAV systems manage the temperature of the different rooms in the building by providing specific volumes of air to each room using equipment known as VAV boxes. At the VAV box, air may be reheated to provide the room with the correct temperature of air needed to maintain the environment at the given setpoint. Our simplified model of the AHU consists of hot and cold water coils for heating/cooling, a return air fan, and a supply air fan. Each VAV box consists of a vent regulating air volume and a heating coil. 
+
+### Definitions of Air Types
+Return air is defined as air which is being returned from the conditioned environment. In this system, return air is mixed with outdoor air to produce mixed air. Mixed air serves as the input to the conditioning system at the AHU level. Once the air is treated (heating/cooling, humidity removal) by the AHU, it is output as supply air. This supply air is then provided to each VAV box for additional heating as needed, producing final supply air. As this lack of distinction between these two versions of "supply air" may be confusing, this analysis will adopt the terms "input air" and "output air" when discussing both the VAV and AHU treatment processes.
+
+### Air Supply Flow
+Air supply flow is measured at the VAV box level and aggregated to determine AHU air volumes.
+
+### Enthalpy Change
+As treatment can occur at both the AHU and VAV box, enthaply change (change in energy due to heating/cooling and humidity removal) must be calculated at both stages and then aggregated to find total enthalpy change at a given time. 
+
+### Weather Data
+Weather data was collected from **Need source for this data** using an API and then merged into the data using the times. The location of this weather data is **TBD** and was used to estimate local temperature, pressure, and relative humidity. **Check units**
+
+
+# Formal model of data-generating process - PRELIMINARY
+
+# Discussion of the statistical model
+
+# Plan for data analysis
+
+# References
 
 # Data and Plan for Analysis
 
-In order to leverage time series analysis to answer this question, this project will investigate:
-
-- How HVAC system operation affects energy consumption over time 
-- How HVAC system operation affect the collected metrics of comfort over time
+The primary goal of this analysis is to generate an effective model of how HVAC system operation affects energy consumption over time, and attempting to create a forcast sing this model.
 
 ##  HVAC System Operation and Energy Consumption
+
+### Heating and Cooling
+
+### Fans
 
 The first portion of the project, focused on HVAC operation and energy consumption, requires the collection and organization of data related to HVAC system operation for each air handling unit, including:
 
