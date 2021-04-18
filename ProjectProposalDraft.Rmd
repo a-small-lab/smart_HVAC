@@ -23,7 +23,7 @@ The data which will be analyzed consists of data exported from an internal UVA s
 
 ## Data
 Index:
-Time, hourly
+Time (hourly)
 
 Key:
 VAV box, HVAC Unit
@@ -59,103 +59,89 @@ As treatment can occur at both the AHU and VAV box, enthaply change (change in e
 ### Weather Data
 Weather data was collected from **Need source for this data** using an API and then merged into the data using the times. The location of this weather data is **TBD** and was used to estimate local temperature, pressure, and relative humidity. **Check units**
 
+# Plan for Analysis
+The primary goal of this analysis is to generate an effective model of how HVAC system operation affects energy consumption over time, which can be divided into three parts:
+
+- Calculate estimated HVAC energy consumption using historical data on operational metrics
+- Validate estimated energy consumption with historical, building-wide energy consumption data; update parameters and assumptions as necessary
+- Create a statistical model of energy consumption in the HVAC system and generate a forecast with this model
+
+
+##  Calculate Energy Usage from HVAC Operational Metrics
+The primary usages of energy in this HVAC system come from treatment at the AHU, treatment at the VAV box, and fan operation in the AHU. Calculations for treatment at the AHU and VAV box level leverage the same equations, and fan equations can be leveraged to estimate fan energy usage.
+
+### Air Treatment
+The change in energy due to air treatment (at either AHU or VAV) can be divided into latent and sensible heat. Changes in latent heat arise from humidity added or removed from the air whereas sensible heat is affected by changes in air temperature. Enthalpy change accounts for both latent and sensible heat as is calculated using **fix with Zotero** (https://rdrr.io/github/chrras/climateeng/man/). Equation 1, below, can then be used to determine total heat by combining calculated enthalpy change with collected data on air volume flow.
+
+#### Equation 1, Latent and Sensible Heat
+**Zotero source**
+h_t = ρ\*q\*dh
+
+where:
+
+h_t = total heat (kW)\
+q = air volume flow (m3/s)\
+ρ = density of air (1.202 kg/m3)\
+dh = enthalpy difference (kJ/kg)
+
+
+### Fans
+Power used by a fan can be calculated using equation 2, below. Pressure will be estimated using local weather data, fan efficiency will be assumed to be 60%, and air volume is measured.
+
+#### Equation 2, Power Used by Fan
+**Zotero source**
+P = dp*q/mu
+
+where:
+
+mu = fan efficiency (values between 0 - 1)\
+dp = total pressure (Pa) \
+q = air volume delivered by the fan (m3/s)\
+P = power used by the fan (W, Nm/s)
+
+## Validation of Estimated Energy Consumption
+**develop statistically sound estimation procedure outside of inspection?**
+Historical data is available for building-wide energy consumption, divided into:
+
+- Chilled water (cooling)
+- Steam (heating)
+- Electricity
+
+As HVAC operation represents a significant part of building energy consumption, we would expect that trends in and changes of HVAC system energy consumption would closely track with building wide energy consumption. Calculated historical energy consumption is plotted next to building-wide energy consumption for inspection:
+
+**insert plot here**
+
+## Forecasting
+
+
 
 # Formal model of data-generating process - PRELIMINARY
+What kind of process is it? AR(p)? White noise with drift? Something else?
+Write down an equation expressing each realization of the stochastic process yt as a function of other observed data (which could include lagged values of y), unobserved parameters (β), and an error term (εt). Ex:
+y=X⋅β+ε
+Add a model of the error process. Ex: ε N(0,σ2IT).
+If applicable: describe any transformations of the data (e.g., differencing, taking logs) you need to make to get the data into a form (e.g., linear) ready for numerical analysis.
 
 # Discussion of the statistical model
+Describe how the formal statistical model captures and aligns with the narrative of the data-generating process.
+Flag any statistical challenges raised by the data generating process, e.g.
+selection bias; survivorship bias
+omitted variables bias
+etc.
 
-# Plan for data analysis
 
 # References
 
-# Data and Plan for Analysis
-
-The primary goal of this analysis is to generate an effective model of how HVAC system operation affects energy consumption over time, and attempting to create a forcast sing this model.
-
-##  HVAC System Operation and Energy Consumption
-
-### Heating and Cooling
-
-### Fans
-
-The first portion of the project, focused on HVAC operation and energy consumption, requires the collection and organization of data related to HVAC system operation for each air handling unit, including:
-
-- Temperature data (deg F):
- - Return Air
- - Supply Air
-
-- Humidity:
-  - Return Air (% rel. humidity)
-
-- Heating/Cooling:
-  - Pre-Heat Valve (% Open)
-  - Chilled Water Valve (% Open)
-
-- Energy Consumption (Calculated from above if not available)
-
-- Supply Air Volume (ft^3/min)
-
-- Air Handling Unit SEER
-
-### Calculation of energy consumption using SEER ratio
-
-The below methodology is pending verification from UVA facilities experts.
-
-SEER = BTU/Watt-Hours = total change in heat energy in conditioned space divided by energy consumed to condition space
 
 
-#### Calculating BTU/hr for heating operation\
-BTU/hr = C * del(T) * M\
-
-Where:
-
-- C is the specific heat of air (approx. 1 kJ/Kg*K)
-- del(T) is the change in temperature
-- M is the mass of air = rho*V, using an approximate density of 1.2 Kg/m^3
-- Given our data an adjustment will also have to be made to convert from cubic feet per **minute** to BTU per **hour**.
-
-
-#### Calculating BTU/hr for cooling operation\
-An additional term can be included in calculating BTU related to the removal of humidity:\
-
-BTU/hr = C * del(T) * M + (0.68 * CFM * del(w_gr))
-
-Where:
-
-- CFM = airflow in cubic feet per minute
-- del(w_gr) = change in humidity ratio in grains
-
-Data is not currently available on humidity removal, so the heating methodology will be applied as an estimated of energy consumption under cooling operation. 
-
-
-## HVAC System Operation and Collected Metrics of Comfort
-
-The second portion of the project, focused on HVAC operation and comfort, requires the collection and organization of data related to HVAC system operation for each air handling unit and room status indicators for all rooms serviced by an air handling unit including:
-
-1. Detailed data on HVAC system operation
-2. Data on CO2, temperature, humidity, occupancy, and other selected metrics 
-
-This analysis will be set aside for now, pending later investigation.
-
-## Improving HVAC System Control Policy
-
-Once both phases of analysis are complete and system dynamics are adequately understood, simulation can be used to develop an optimized control mechanism to minimize energy usage while maintaining occupant safety.
-
-
-# Exploratory Data Analysis
-
-
-# Data and Data Generating Process
 
 
 # Links to sources
-- US DOE Report: https://www.energy.gov/sites/prod/files/2017/12/f46/bto-DOE-Comm-HVAC-Report-12-21-17.pdf - BTU formulae: 
+- US DOE Report: https://www.energy.gov/sites/prod/files/2017/12/f46/bto-DOE-Comm-HVAC-Report-12-21-17.pdf 
+- BTU formulae: 
   - https://www.advantageengineering.com/fyi/288/pdf/advantageIndustrialFormulas.pdf
   - https://www.engineeringtoolbox.com/cooling-heating-equations-d_747.html
   - https://www.energyvanguard.com/blog/converting-heating-and-cooling-loads-air-flow-physics
-- SEER:
-  - https://www.sciencedirect.com/topics/engineering/seasonal-energy-efficiency-ratio#:~:text=The%20SEER%20rating%20is%20calculated,efficient%20the%20air%20conditioner%20is. 
-  https://www.ahrinet.org/App_Content/ahri/files/standards%20pdfs/ANSI%20standards%20pdfs/ANSI.AHRI%20Standard%20210.240%20with%20Addenda%201%20and%202.pdf
 - Supply Air Temperature: https://www.sciencedirect.com/topics/engineering/supply-air-temperature
 - General readings:
   - https://onlinelibrary.wiley.com/doi/full/10.1111/ina.12496?casa_token=WXZVCDnNN9AAAAAA%3A-yxXhqtRRzBjY5bNRnOfwfIpDrbxLWxvaFWFe9TMt17Pbim5uxgKQn4R8EqDvDDaE3mU4svSIxvo9GP2
