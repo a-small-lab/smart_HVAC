@@ -1,0 +1,60 @@
+---
+title: "total_data_clean"
+author: "Caleb Neale"
+date: "4/25/2021"
+output: pdf_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(fpp3)
+library(readxl)
+```
+
+# Import Data
+```{r}
+df = read_excel("OlssonLinklabMarch2021_Every30minutes.xlsx")
+df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
+df$TimeThirty = as.POSIXct(df$TimeThirty)
+
+tags = read.csv("AllOlssonLinkLabMetersTags - AllOlssonLinkLabMetersTags.csv")
+colnames(tags) = c("index", "tag", "included")
+tags = tags %>% select(tag, included)
+tags %>% filter(included) -> tags
+```
+
+# Seperate out and clean data by room and equipment
+```{r}
+AHU2E = df %>% filter(grepl("AHU2E", Tagname))
+AHU2E$equipment = "AHU2E"
+AHU2E$tag = str_match(AHU2E$Tagname, "(SAT)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFD)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2E %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2E
+colnames(AHU2E) = c("datapoint", "time", "value", "equipment")
+
+AHU2W = df %>% filter(grepl("AHU2E", Tagname))
+AHU2W$equipment = "AHU2W"
+AHU2W$tag = str_match(AHU2W$Tagname, "(SAT)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFD)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2W %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2W
+colnames(AHU2W) = c("datapoint", "time", "value", "equipment")
+
+equipData = rbind(AHU2E, AHU2W)
+
+roomData = df %>% filter(grepl("Floors", Tagname))
+roomData$room = str_match(roomData$Tagname, "2(\\d{3,4})[SZ]")[,2]
+roomData$datapoint = str_match(roomData$Tagname, "SAFSP|SAF|SAT|ZNT")
+roomData %>% select(room, datapoint, TimeThirty, TimeThirtyValue) -> roomData
+colnames(roomData) = c("room", "datapoint", "time", "value")
+
+
+```
+
+# Reshape into from long to wide form
+```{r}
+write.csv(equipData, "equipData.csv")
+equipUnstacked = read.csv("unstackedEquip.csv")
+equipUnstacked %>% select(time_MAT, equipment_MAT, value_RFNC, value_RFNSTS, value_SAF, value_SAT, value_SFNC, value_SFNSTS, value_SFNVFD, value_RFNVFD, ï..value_MAT) -> equipUnstacked
+colnames(equipUnstacked) = c("time", "equipment", "RFNC", "RFNSTS", "SAF", "SAT", "SFNC", "SFNSTS", "SFNVFD", "RFNVFD", "MAT")
+```
+
+
