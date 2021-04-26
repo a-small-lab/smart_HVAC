@@ -78,13 +78,34 @@ equipUnstacked$time = as.POSIXct(equipUnstacked$time)
 
 ```
 
+# Fan Energy
+```{r}
+equipUnstacked$fanEnergy = 2*equipUnstacked$SAF*94321.77/0.6/100000000
+```
+
+
+# Start Plotting
 ```{r}
 library(ggplot2)
 hist(totalHeat)
 
-ggplot(data=equipUnstacked, aes(x=time, y = totalHeat)) + geom_line() + xlab("Time") + ylab("Total Heat")
+ggplot(data=equipUnstacked, aes(x=time, y = totalHeat)) + geom_line() + xlab("Time") + ylab("Total Heat (kW)")
+ggplot(data=equipUnstacked, aes(x=time, y = fanEnergy)) + geom_line() + xlab("Time") + ylab("Fan Energy (kW)")
+
 
 ```
+```{r}
+gg_season(fill_gaps(equipUnstacked), totalHeat)
+gg_season(fill_gaps(equipUnstacked), totalHeat, period = "day")
+gg_subseries(fill_gaps(equipUnstacked), totalHeat, period = "day")
+
+gg_season(fill_gaps(equipUnstacked), fanEnergy)
+gg_season(fill_gaps(equipUnstacked), fanEnergy, period = "day")
+gg_subseries(fill_gaps(equipUnstacked), fanEnergy, period = "day")
+
+```
+
+
 # A massive waste of four hours
 ```{r}
 # write.csv(equipData, "equipData.csv")
