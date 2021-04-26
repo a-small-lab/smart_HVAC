@@ -18,7 +18,6 @@ df = read.csv("OlssonLinklabMarch2021_Every30minutes.csv")
 colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
 df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
 df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
-# df$TimeThirty = strptime(df$TimeThirty, format ="%m/%d/%Y %H:%M")
 
 # tags = read.csv("AllOlssonLinkLabMetersTags - AllOlssonLinkLabMetersTags.csv")
 # colnames(tags) = c("index", "tag", "included")
@@ -30,13 +29,13 @@ df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
 ```{r}
 AHU2E = df %>% filter(grepl("AHU2E", Tagname))
 AHU2E$equipment = "AHU2E"
-AHU2E$tag = str_extract(AHU2E$Tagname, "(SAT$)|(SATSP)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFDO)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2E$tag = str_extract(AHU2E$Tagname, "(SAT$)|(SATSP$)|(MAT$)|(SFNSTS$)|(SFNC$)|(SFNVFDO$)|(RFNVFDO$)|(RFNSTS$)|(RFNC$)|(SAF$)|(SAFSP$)|(SAFS$)|(ZNT$)|(RFNSTS$)|(SFNVFDALA$)")
 AHU2E %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2E
 colnames(AHU2E) = c("datapoint", "time", "value", "equipment")
 
-AHU2W = df %>% filter(grepl("AHU2E", Tagname))
+AHU2W = df %>% filter(grepl("AHU2W", Tagname))
 AHU2W$equipment = "AHU2W"
-AHU2W$tag = str_extract(AHU2W$Tagname, "(SAT$)|(SATSP)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFDO)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2W$tag = str_extract(AHU2W$Tagname, "(SAT$)|(SATSP$)|(MAT$)|(SFNSTS$)|(SFNC$)|(SFNVFDO$)|(RFNVFDO$)|(RFNSTS$)|(RFNC$)|(SAF$)|(SAFSP$)|(SAFS$)|(ZNT$)|(RFNSTS$)|(SFNVFDALA$)")
 AHU2W %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2W
 colnames(AHU2W) = c("datapoint", "time", "value", "equipment")
 
@@ -55,11 +54,37 @@ colnames(roomData) = c("room", "datapoint", "time", "value")
 ```{r}
 library(stats)
 
-pivot_wider(equipData, names_from = datapoint, values_from = value) -> equipUnstacked
+pivot_wider(equipData, id_cols = c(equipment, time, datapoint), names_from = datapoint, values_from = value) -> 
+equipUnstacked
+
+equipUnstacked %>% select(equipment, time) %>% duplicated() %>% any()
+
+equipUnstacked$time = strptime(equipUnstacked$time, format ="%m/%d/%y %I:%M %p")
+
 pivot_wider(roomData, names_from = datapoint, values_from = value) -> roomUnstacked
 ```
 
+# Calculate Enthalpy for Mixed and supply Air, then total heat
+```{r}
+library(climateeng)
 
+equipUnstacked$SAEnthalpy = enthalpy(equipUnstacked$SAT, 0.010) 
+equipUnstacked$MAEnthalpy = enthalpy(equipUnstacked$MAT, 0.010)
+equipUnstacked$totalHeat = abs(equipUnstacked$SAEnthalpy -equipUnstacked$MAEnthalpy)*0.00047194745*equipUnstacked$SAF*1.202
+
+equipUnstacked = as_tsibble(filter(equipUnstacked, !(is.na(time))), key = equipment, index = time)
+equipUnstacked$time = as.POSIXct(equipUnstacked$time) 
+
+
+```
+
+```{r}
+library(ggplot2)
+hist(totalHeat)
+
+ggplot(data=equipUnstacked, aes(x=time, y = totalHeat)) + geom_line() + xlab("Time") + ylab("Total Heat")
+
+```
 # A massive waste of four hours
 ```{r}
 # write.csv(equipData, "equipData.csv")
@@ -122,20 +147,3 @@ for(i in 1:nrows(roomUnstacked)){
   where(equipUnstacked)
 }
 ```
-
-# Calculate Enthalpy for Mixed and supply Air
-```{r}
-library(climateeng)
-attach(equipUnstacked)
-equipUnstacked$SAEnthalpy = enthalpy(SAT, 0.010) 
-equipUnstacked$MAEnthalpy = enthalpy(MAT, 0.010)
-equipUnstacked$EnthalpyChange = abs(SAEnthalpy - MAEnthalpy)
-equipUnstacked$totalHeat = abs(SAEnthalpy - MAEnthalpy)*0.00047194745*SAF*1.202
-
-```
-
-```{r}
-hist(totalHeat)
-
-```
-
