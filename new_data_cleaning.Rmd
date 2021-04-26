@@ -14,34 +14,36 @@ library(readxl)
 
 # Import Data
 ```{r}
-df = read_excel("OlssonLinklabMarch2021_Every30minutes.xlsx")
+df = read.csv("OlssonLinklabMarch2021_Every30minutes.csv")
+colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
+df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
 df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
-df$TimeThirty = as.POSIXct(df$TimeThirty)
+# df$TimeThirty = strptime(df$TimeThirty, format ="%m/%d/%Y %H:%M")
 
-tags = read.csv("AllOlssonLinkLabMetersTags - AllOlssonLinkLabMetersTags.csv")
-colnames(tags) = c("index", "tag", "included")
-tags = tags %>% select(tag, included)
-tags %>% filter(included) -> tags
+# tags = read.csv("AllOlssonLinkLabMetersTags - AllOlssonLinkLabMetersTags.csv")
+# colnames(tags) = c("index", "tag", "included")
+# tags = tags %>% select(tag, included)
+# tags %>% filter(included) -> tags
 ```
 
 # Seperate out and clean data by room and equipment
 ```{r}
 AHU2E = df %>% filter(grepl("AHU2E", Tagname))
 AHU2E$equipment = "AHU2E"
-AHU2E$tag = str_match(AHU2E$Tagname, "(SAT)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFD)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2E$tag = str_extract(AHU2E$Tagname, "(SAT$)|(SATSP)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFDO)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
 AHU2E %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2E
 colnames(AHU2E) = c("datapoint", "time", "value", "equipment")
 
 AHU2W = df %>% filter(grepl("AHU2E", Tagname))
 AHU2W$equipment = "AHU2W"
-AHU2W$tag = str_match(AHU2W$Tagname, "(SAT)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFD)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
+AHU2W$tag = str_extract(AHU2W$Tagname, "(SAT$)|(SATSP)|(MAT)|(SFNSTS)|(SFNC)|(SFNVFDO)|(RFNVFD)|(RFNSTS)|(RFNC)|(SAF)|(SAFS)|(ZNT)")
 AHU2W %>% select(tag, TimeThirty, TimeThirtyValue, equipment) -> AHU2W
 colnames(AHU2W) = c("datapoint", "time", "value", "equipment")
 
 equipData = rbind(AHU2E, AHU2W)
 
 roomData = df %>% filter(grepl("Floors", Tagname))
-roomData$room = str_match(roomData$Tagname, "2(\\d{3,4})[SZ]")[,2]
+roomData$room = str_match(roomData$Tagname, "2(C?\\d{3,4})[SZ]")[,2]
 roomData$datapoint = str_match(roomData$Tagname, "SAFSP|SAF|SAT|ZNT")
 roomData %>% select(room, datapoint, TimeThirty, TimeThirtyValue) -> roomData
 colnames(roomData) = c("room", "datapoint", "time", "value")
@@ -51,10 +53,89 @@ colnames(roomData) = c("room", "datapoint", "time", "value")
 
 # Reshape into from long to wide form
 ```{r}
-write.csv(equipData, "equipData.csv")
-equipUnstacked = read.csv("unstackedEquip.csv")
-equipUnstacked %>% select(time_MAT, equipment_MAT, value_RFNC, value_RFNSTS, value_SAF, value_SAT, value_SFNC, value_SFNSTS, value_SFNVFD, value_RFNVFD, ï..value_MAT) -> equipUnstacked
-colnames(equipUnstacked) = c("time", "equipment", "RFNC", "RFNSTS", "SAF", "SAT", "SFNC", "SFNSTS", "SFNVFD", "RFNVFD", "MAT")
+library(stats)
+
+pivot_wider(equipData, names_from = datapoint, values_from = value) -> equipUnstacked
+pivot_wider(roomData, names_from = datapoint, values_from = value) -> roomUnstacked
 ```
 
+
+# A massive waste of four hours
+```{r}
+# write.csv(equipData, "equipData.csv")
+equipUnstacked = read.csv("unstackedEquip.csv")
+
+time_and_filter = function(df){
+  colnames(df) = c("time", "equipment", "value")
+  df$time = strptime(df$time, format ="%m/%d/%Y %H:%M")
+  df %>% filter(!(is.na(time))) -> df
+  return(df)
+}
+
+equipUnstacked %>% select(time_MAT, equipment_MAT, ï..value_MAT) -> MATUnstacked
+MATUnstacked = time_and_filter(MATUnstacked)
+
+equipUnstacked %>% select(time_SAF, equipment_SAF, value_SAF) -> SAFUnstacked
+SAFUnstacked = time_and_filter(SAFUnstacked)
+
+equipUnstacked %>% select(time_SAT, equipment_SAT, value_SAT) -> SATUnstacked
+SATUnstacked = time_and_filter(SATUnstacked)
+
+equipUnstacked %>% select(time_RFNVFD, equipment_RFNVFD, value_RFNVFD) -> RFNVFDUnstacked
+RFNVFDUnstacked = time_and_filter(RFNVFDUnstacked)
+
+equipUnstacked %>% select(time_SFNVFD, equipment_SFNVFD, value_SFNVFD) -> SFNVFDUnstacked
+SFNVFDUnstacked = time_and_filter(SFNVFDUnstacked)
+
+
+inner_join(MATUnstacked, SAFUnstacked, by=c("time", "equipment"), suffix=c("MAT", "SAF")) %>% inner_join(SATUnstacked, by=c("time", "equipment")) %>% inner_join(RFNVFDUnstacked, by=c("time", "equipment"), suffix=c("SAT", "RFNVFD")) %>% inner_join(SFNVFDUnstacked, by=c("time", "equipment")) %>% distinct() -> equipUnstacked
+
+colnames(equipUnstacked) = c("time", "equipment", "MAT", "SAF", "SAT", "RFNVFD", "SFNVFD")
+
+# write.csv(roomData, "roomData.csv")
+roomUnstacked = read.csv("unstackedRoom.csv")
+
+roomUnstacked %>% select(time_SAFSP, room_SAFSP, value_SAFSP) -> SAFSPUnstacked
+colnames(SAFSPUnstacked) = c("time", "room", "value")
+roomUnstacked %>% select(time_SAF, room_SAF, ï..value_SAF) -> SAFUnstacked
+colnames(SAFUnstacked) = c("time", "room", "value")
+roomUnstacked %>% select(time_SAT, room_SAT, value_SAT) -> SATUnstacked
+colnames(SATUnstacked) = c("time", "room", "value")
+roomUnstacked %>% select(time_ZNT, room_ZNT, value_ZNT) -> ZNTUnstacked
+colnames(ZNTUnstacked) = c("time", "room", "value")
+
+inner_join(SAFSPUnstacked, SAFUnstacked, by=c("time", "room"), suffix=c("SAFSP", "SAF")) %>% filter(!is.na(valueSAFSP)) %>% inner_join(SATUnstacked, by=c("time", "room")) %>% inner_join(ZNTUnstacked, by=c("time", "room"), suffix=c("SAT", "ZNT")) -> roomUnstacked
+
+colnames(roomUnstacked) = c("time", "room", "SAFSP", "SAF", "SAT", "SAF")
+
+```
+
+# Get input air temp for each room
+```{r}
+AHU_2E <- c(241, 243, 245, 247, 249, 251, 253, 257, 255, 259, 263, 261, 240, "C244", 244, 260, 213, 217, 225, 218, "C230", 220, "C210", "T212", "T218", "C216", "C214", "T210", 256, 229, 231, 223, "C227", "C211", 254, "C250", 258) 
+
+AHU_2W <- c(269, 267, 265, 273, 271, 275, 277, 279, 281, 283, 285, 274, 286, 204, 208, 272, 270, "C260", "C200", "C201", 203, 276, "C280", "C270", 211, 201)
+
+for(i in 1:nrows(roomUnstacked)){
+  time = roomUnstacked[i,1]
+  if 
+  where(equipUnstacked)
+}
+```
+
+# Calculate Enthalpy for Mixed and supply Air
+```{r}
+library(climateeng)
+attach(equipUnstacked)
+equipUnstacked$SAEnthalpy = enthalpy(SAT, 0.010) 
+equipUnstacked$MAEnthalpy = enthalpy(MAT, 0.010)
+equipUnstacked$EnthalpyChange = abs(SAEnthalpy - MAEnthalpy)
+equipUnstacked$totalHeat = abs(SAEnthalpy - MAEnthalpy)*0.00047194745*SAF*1.202
+
+```
+
+```{r}
+hist(totalHeat)
+
+```
 
