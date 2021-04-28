@@ -1,0 +1,32 @@
+---
+title: "Concept Note"
+subtitle: " Optimizing HVAC Operation for Occupant Comfort and Energy Savings"
+author: "Caleb Neale"
+date: "Spring 2021"
+output: pdf_document
+---
+---
+
+In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental and occupancy data available for analysis. This presents an opportunity for detailed study of the performance of HVAC systems among multiple metrics outside of temperature and humidity, as well as the deeper consideration of potential energy savings which could be gained from a holistically "smart" HVAC system which can consider multiple metrics of occupant comfort, as well as whether a given room even has occupants which require comfort. The overall goal of the project would be to minimize energy usage while still maintaining an optimally comfortable environment for any potential occupants of the building. 
+
+In order to leverage timeseries analysis in this pursuit, the goal can be subdivided into two questions:
+
+- How do operation status indicators of HVAC system affect energy consumption?
+- How do operation status indicators of HVAC system affect the collected metrics of comfort?
+
+
+### The data requirements of the first part would be:
+
+1. Detailed data on HVAC system operation (some data available, pending further exploration)
+2. Data on HVAC system energy consumption (data not currently available, can be estimated using HVAC system specifications)
+
+
+### The data requirements of the second part would be:
+
+1. Detailed data on HVAC system operation (some data available, pending further exploration)
+2. Data on CO2, temperature, humidity, occupancy, and other selected metrics (available through living link lab)
+
+
+Once both phases of analysis are complete and system dynamics are adequately understood, simulation can be used to develop an optimized control mechanism to minimize energy usage while maintaining occupant safety. 
+
+
