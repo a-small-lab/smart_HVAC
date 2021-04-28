@@ -1,0 +1,45 @@
+---
+title: "data_viz"
+author: "Caleb Neale"
+date: "4/28/2021"
+output: pdf_document
+---
+# Read Data
+```{r}
+load(file="cleanedData.Rdata")
+```
+
+
+# Equipment Plotting
+## Autoplot variables of interest
+```{r}
+library(ggplot2)
+hist(equip$totalHeat)
+
+autoplot(equip, .vars=totalHeat)
+autoplot(equip, .vars=fanEnergy)
+autoplot(rooms, .vars=totalHeat)
+autoplot(totalHeatdf, .vars=totalHeat.AHU)
+autoplot(totalHeatdf, .vars=totalHeat.room)
+autoplot(totalHeatdf, .vars = totalHeat)
+```
+
+## Seasonal plots
+```{r}
+gg_season(equip, totalHeat)
+gg_season(fill_gaps(equip), totalHeat, period = "day")
+gg_subseries(fill_gaps(equip), totalHeat, period = "day")
+
+gg_season(fill_gaps(equip), fanEnergy)
+gg_season(fill_gaps(equip), fanEnergy, period = "day")
+gg_subseries(fill_gaps(equip), fanEnergy, period = "day")
+
+```
+
+# Room Level Plotting
+```{r}
+hist(rooms$totalHeat)
+ggplot(data=rooms, aes(x=time, y = totalHeat)) + geom_line() + xlab("Time") + ylab("Total Heat (kW)")
+autoplot(rooms, .vars=totalHeat)
+
+```
