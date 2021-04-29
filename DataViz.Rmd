@@ -6,7 +6,8 @@ output: pdf_document
 ---
 # Read Data
 ```{r}
-load(file="cleanedData.Rdata")
+load(file="data\\cleanedData.Rdata")
+weather
 ```
 
 
@@ -19,9 +20,10 @@ hist(equip$totalHeat)
 autoplot(equip, .vars=totalHeat)
 autoplot(equip, .vars=fanEnergy)
 autoplot(rooms, .vars=totalHeat)
-autoplot(totalHeatdf, .vars=totalHeat.AHU)
-autoplot(totalHeatdf, .vars=totalHeat.room)
-autoplot(totalHeatdf, .vars = totalHeat)
+autoplot(totalEnergy, .vars=totalHeat.AHU)
+autoplot(totalEnergy, .vars=totalHeat.room)
+autoplot(totalEnergy, .vars = totalHeat)
+autoplot(totalEnergy, .vars = totalEnergy) + ggplot() + geom_line(data=weather, x= weather$obsTimeLocal, y=weather$tempAvg)
 ```
 
 ## Seasonal plots

@@ -14,7 +14,27 @@ library(readxl)
 
 # Import Data
 ```{r}
-df = read.csv("OlssonLinklabMarch2021_Every30minutes.csv")
+# con = dbConnect(odbc(),
+#           Driver = "SQL Server",
+#           Server = "data.fm.virginia.edu",
+#           Database = "toSeas",
+#           UID = "can4ku",
+#           PWD = "LinkLabDataisHere")
+
+# read and clean weather data
+weather = read.csv("data\\linkLabWeather.csv")
+
+weather %>% select(humidityAvg, tempAvg, obsTimeLocal, pressureMax, stationID) -> weather
+
+weather$obsTimeLocal = strptime(weather$obsTimeLocal, format ="%m/%d/%Y %H:%M")
+weather$obsTimeLocal = as.POSIXct(weather$obsTimeLocal)
+
+weather = weather %>% filter(!are_duplicated(weather, index=obsTimeLocal, key=stationID))
+
+weather = as_tsibble(weather, index=obsTimeLocal, key=stationID) 
+
+# Read march data sample
+df = read.csv("data\\OlssonLinklabMarch2021_Every30minutes.csv")
 colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
 df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
 df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
@@ -106,8 +126,9 @@ equip$totalHeat = abs(equip$SAEnthalpy -equip$MAEnthalpy)*CFMtoM_SConverstionFac
 ```{r}
 fanEfficiencyCoef = 0.6
 pressure = 4000
+Wto_kW =1000
 
-equip$fanEnergy = 2*equip$SAF*CFMtoM_SConverstionFactor*pressure/fanEfficiencyCoef/1000
+equip$fanEnergy = 2*equip$SAF*CFMtoM_SConverstionFactor*pressure/fanEfficiencyCoef/Wto_kW
 ```
 
 # Get input air temp for each room
@@ -150,15 +171,16 @@ rooms$totalHeat = abs(rooms$inputEnthalpy - rooms$outputEnthalpy)*CFMtoM_SConver
 ```{r}
 rooms %>% group_by(equipment) %>% summarise(totalHeat = sum(totalHeat)) -> roomAHUHeat
 
-equip %>% select(totalHeat) %>% inner_join(roomAHUHeat, by=c("time", "equipment"), suffix = c(".AHU", ".room")) ->totalHeatdf
+equip %>% select(totalHeat, fanEnergy) %>% inner_join(roomAHUHeat, by=c("time", "equipment"), suffix = c(".AHU", ".room")) -> totalEnergy
 
-totalHeatdf$totalHeat = totalHeatdf$totalHeat.AHU + totalHeatdf$totalHeat.room
+totalEnergy$totalHeat = totalEnergy$totalHeat.AHU + totalEnergy$totalHeat.room
+totalEnergy$totalEnergy = totalEnergy$totalHeat + totalEnergy$fanEnergy
 ```
 
 # Write cleaned data for later use
 ```{r}
-save(equip, rooms, totalHeatdf, file="cleanedData.Rdata")
-write.csv(rooms, "cleanedRooom.csv")
-write.csv(equip, "cleanedEquip.csv")
-write.csv(totalHeatdf, "calculatedHeat.csv")
+save(equip, rooms, totalEnergy, weather, file="data\\cleanedData.Rdata")
+# write.csv(rooms, "data\\cleanedRooom.csv")
+# write.csv(equip, "data\\cleanedEquip.csv")
+# write.csv(totalHeatdf, "data\\calculatedHeat.csv")
 ```

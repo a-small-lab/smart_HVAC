@@ -22,23 +22,25 @@ This project will investigate the first phase of determining if it possible to c
 The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab, the unit of measure for this project. Additionally, local weather data on humidity and atmospheric pressure necessary for  calculations, and local temperature data, a potential predictor of consumption, will also be obtained. 
 
 ## Data
+### Air Handling Unit Level Data
 Index:
-Time (hourly)
+Time (30min)
 
 Key:
-VAV box, HVAC Unit
+HVAC Air Handling Unit (AHU2E or AHU2W)
 
 Values:
-- Output Air Temperature (deg C)
-- Input Air Temperature  (deg C)
-- Air Supply Flow (CFM)
-- Air Supply Flow Set point (CFM)
-- Local Temperature (deg C)
-- Local Humidity (%RH)
-- Local Air Pressure (kPA)
-- Enthalpy change (calculated, BTU)
-- Fan Energy Consumption (Calculated, BTU)
-- Total Energy Consumption (Calculated, BTU)
+- SAT - Output Air Temperature (deg C)
+- MAT - Input Air Temperature  (deg C)
+- SAF - Air Supply Flow (CFM)
+- SAFSP - Air Supply Flow Set point (CFM)
+- SAEnthalpy - Output air enthalpy (calculated, kW)
+- MAEnthalpy - Input air enthalpy (calculated, kW)
+- totalHeat - Change in enthalpy (calculated, kW)
+- fanEnergy - Energy used by fan  (calculated, kW)
+
+### Room Level Data
+
 
 Insert preview and graphs here
 
