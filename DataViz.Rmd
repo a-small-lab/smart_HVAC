@@ -7,7 +7,6 @@ output: pdf_document
 # Read Data
 ```{r}
 load(file="data\\cleanedData.Rdata")
-weather
 ```
 
 
@@ -15,21 +14,55 @@ weather
 ## Autoplot variables of interest
 ```{r}
 library(ggplot2)
+library(tidyverse)
+
 hist(equip$totalHeat)
 
-autoplot(equip, .vars=totalHeat)
-autoplot(equip, .vars=fanEnergy)
-autoplot(rooms, .vars=totalHeat)
-autoplot(totalEnergy, .vars=totalHeat.AHU)
-autoplot(totalEnergy, .vars=totalHeat.room)
-autoplot(totalEnergy, .vars = totalHeat)
-autoplot(totalEnergy, .vars = totalEnergy) + ggplot() + geom_line(data=weather, x= weather$obsTimeLocal, y=weather$tempAvg)
+autoplot(totalEnergy, .vars=totalHeat.AHU, ylab="Total AHU Heat, kW")
+autoplot(totalEnergy, .vars=totalHeat.room, ylab="Total Room Heat, kW")
+autoplot(totalEnergy, .vars=fanEnergy, ylab="Fan Energy, kW")
+autoplot(totalEnergy, .vars = totalHeat, ylab="Combined room and AHU Heat, kW")
+autoplot(totalEnergy, .vars = totalEnergy, ylab="Fan, Room, and AHU Energy, kW") 
+```
+## Area Plot Total Energy
+```{r}
+# get longform data for plotting
+totalEnergy %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2E") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2E
+
+totalEnergy %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2W") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2W
+
+# stacked area plots
+ggplot(data = longAHU2W, aes(x=time, y=value, fill=datapoint)) + geom_area()
+ggplot(data = longAHU2E, aes(x=time, y=value, fill=datapoint)) + geom_area()
+
+# proportional stacked area plots
+ggplot(longAHU2W, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+
+ggplot(longAHU2E, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+```
+## Energy and Temperature
+```{r}
+weather_merge = weather
+
+weather_merge$obsTimeLocal = weather_merge$obsTimeLocal + 60
+
+left_join(totalEnergy, weather_merge, by=c("time" = "obsTimeLocal")) %>% filter(!is.na(totalEnergy))-> weather_energy
+ggplot() + geom_point(data = weather_energy, aes(x=tempAvg, y=totalEnergy))
 ```
 
 ## Seasonal plots
 ```{r}
-gg_season(equip, totalHeat)
-gg_season(fill_gaps(equip), totalHeat, period = "day")
+totalEnergy = fill_gaps(totalEnergy)
+gg_season(totalEnergy, totalEnergy, period = "week")
+gg_season(totalEnergy, totalEnergy, period = "day")
+gg_season(totalEnergy, totalEnergy, period = "month")
+gg_season(totalEnergy, totalEnergy, period = "year")
+gg_season(totalEnergy, totalEnergy, period = "hour")
+
+
+
 gg_subseries(fill_gaps(equip), totalHeat, period = "day")
 
 gg_season(fill_gaps(equip), fanEnergy)
@@ -38,10 +71,69 @@ gg_subseries(fill_gaps(equip), fanEnergy, period = "day")
 
 ```
 
-# Room Level Plotting
+# Seasonal Subseries Plots
 ```{r}
-hist(rooms$totalHeat)
-ggplot(data=rooms, aes(x=time, y = totalHeat)) + geom_line() + xlab("Time") + ylab("Total Heat (kW)")
-autoplot(rooms, .vars=totalHeat)
+gg_subseries(totalEnergy, totalEnergy, period="day")
 
 ```
+
+# Lag Plots
+```{r}
+totalEnergy %>% select(totalEnergy) %>% filter(equipment == "AHU2E") %>% gg_lag(y=totalEnergy, geom = "point")
+totalEnergy %>% select(totalEnergy) %>% filter(equipment == "AHU2W") %>% gg_lag(y=totalEnergy, geom = "point")
+
+```
+# Autocorrelation Plots
+```{r}
+
+# ACFs
+totalEnergy %>% filter(equipment == "AHU2E") %>% ACF(totalEnergy) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% ACF(totalEnergy) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% ACF(fanEnergy) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% ACF(fanEnergy) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% ACF(totalHeat.AHU) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% ACF(totalHeat.AHU) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% ACF(totalHeat.room) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% ACF(totalHeat.room) %>% autoplot()
+
+# PACFs
+totalEnergy %>% filter(equipment == "AHU2E") %>% PACF(totalEnergy) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% PACF(totalEnergy) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% PACF(fanEnergy) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% PACF(fanEnergy) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% PACF(totalHeat.AHU) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% PACF(totalHeat.AHU) %>% autoplot()
+
+totalEnergy %>% filter(equipment == "AHU2E") %>% PACF(totalHeat.room) %>% autoplot()
+totalEnergy %>% filter(equipment == "AHU2W") %>% PACF(totalHeat.room) %>% autoplot()
+```
+# Moving average plots
+```{r}
+totalEnergyMA <- totalEnergy %>% mutate(
+    `200MA` = slider::slide_dbl(totalEnergy, mean,
+                .before =100, .after = 100, .complete = TRUE)
+  )
+
+totalEnergyMA %>% filter(equipment == "AHU2E") %>%
+  autoplot(totalEnergy, color = "gray") +
+  geom_line(aes(y = `200MA`), color = "#D55E00") +
+  labs(y = "Total Energy",
+       title = "Total Energy over Time") +
+  guides(colour = guide_legend(title = "series"))
+
+totalEnergyMA %>% filter(equipment == "AHU2W") %>%
+  autoplot(totalEnergy, color = "gray") +
+  geom_line(aes(y = `200MA`), color = "#D55E00") +
+  labs(y = "Total Energy",
+       title = "Total Energy over Time") +
+  guides(colour = guide_legend(title = "series"))
+
+
+
+```
+

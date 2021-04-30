@@ -3,7 +3,7 @@
 3,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2EEXHDO,FALSE
 4,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ELTALA,FALSE
 5,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERAF,FALSE
-6,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERAH,FALSE
+6,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERAH,TRUE
 7,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERFNSTS,TRUE
 8,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERFNVFDO,TRUE
 9,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ESFNC,TRUE
@@ -177,7 +177,7 @@
 177,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WCHWVO,FALSE
 178,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WEXHDO,FALSE
 179,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WLTALA,FALSE
-180,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WRAH,FALSE
+180,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WRAH,TRUE
 181,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WRASMK,FALSE
 182,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WRFNVFDO,TRUE
 183,UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2WSFNVFDALA,TRUE

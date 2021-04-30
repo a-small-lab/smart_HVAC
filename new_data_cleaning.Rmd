@@ -9,17 +9,24 @@ output: pdf_document
 library(tidyverse)
 library(lubridate)
 library(fpp3)
-library(readxl)
+library(DBI)
+library(odbc)
 ```
 
 # Import Data
 ```{r}
-# con = dbConnect(odbc(),
-#           Driver = "SQL Server",
-#           Server = "data.fm.virginia.edu",
-#           Database = "toSeas",
-#           UID = "can4ku",
-#           PWD = "LinkLabDataisHere")
+# connect to database
+con = dbConnect(odbc(),
+          Driver = "SQL Server",
+          Server = "data.fm.virginia.edu",
+          Database = "ToSeas",
+          UID = "can4ku",
+          PWD = "LinkLabDataisHere")
+
+df = dbReadTable(con, "LinkLabUsageAVG_Every30mins_v")
+colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
+df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
+df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
 
 # read and clean weather data
 weather = read.csv("data\\linkLabWeather.csv")
@@ -33,11 +40,11 @@ weather = weather %>% filter(!are_duplicated(weather, index=obsTimeLocal, key=st
 
 weather = as_tsibble(weather, index=obsTimeLocal, key=stationID) 
 
-# Read march data sample
-df = read.csv("data\\OlssonLinklabMarch2021_Every30minutes.csv")
-colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
-df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
-df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
+# # Read march data sample
+# df = read.csv("data\\OlssonLinklabMarch2021_Every30minutes.csv")
+# colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
+# df %>% select(Tagname, TimeThirty, Status, TimeThirtyValue, PointID) -> df
+# df$TimeThirtyValue = as.numeric(df$TimeThirtyValue)
 ```
 
 # Seperate out and clean data by room and equipment
@@ -78,8 +85,8 @@ equipUnstacked
 equipUnstacked %>% select(equipment, time) %>% duplicated() %>% any()
 
 # Convert to Datetime
-equipUnstacked$time = strptime(equipUnstacked$time, format ="%m/%d/%y %I:%M %p")
-equipUnstacked$time = as.POSIXct(equipUnstacked$time)
+# equipUnstacked$time = strptime(equipUnstacked$time, format ="%m/%d/%y %I:%M %p")
+# equipUnstacked$time = as.POSIXct(equipUnstacked$time)
 
 # Unstack room data
 pivot_wider(roomData, names_from = datapoint, values_from = value) -> roomUnstacked
@@ -88,8 +95,8 @@ pivot_wider(roomData, names_from = datapoint, values_from = value) -> roomUnstac
 roomUnstacked %>% select(room, time) %>% duplicated() %>% any()
 
 # Convert to Datetime
-roomUnstacked$time = strptime(roomUnstacked$time, format ="%m/%d/%y %I:%M %p")
-roomUnstacked$time = as.POSIXct(roomUnstacked$time)
+# roomUnstacked$time = strptime(roomUnstacked$time, format ="%m/%d/%y %I:%M %p")
+# roomUnstacked$time = as.POSIXct(roomUnstacked$time)
 
 
 equip = equipUnstacked
