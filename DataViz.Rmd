@@ -7,7 +7,6 @@ output: pdf_document
 # Read Data
 ```{r}
 load(file="data\\cleanedData.Rdata")
-hist(weather$pressureMax)
 ```
 
 
@@ -56,7 +55,7 @@ weather_merge$obsTimeLocal = weather_merge$obsTimeLocal + 60
 left_join(totalEnergy, weather_merge, by=c("time" = "obsTimeLocal")) %>% filter(!is.na(totalEnergy))-> weather_energy
 
 # plot, filtering out low energy values for when HVAC system is "off"
-ggplot(data = weather_energy %>% filter(totalEnergy > 25), aes(x=tempAvg, y=totalEnergy)) + geom_point() + geom_smooth()
+ggplot(data = weather_energy %>% filter(totalEnergy > 50), aes(x=tempAvg, y=totalEnergy)) + geom_point() + geom_smooth()
 ```
 
 ## Seasonal plots
@@ -241,7 +240,7 @@ fc %>%
   facet_wrap(vars(equipment), scales = "free_y")
 
 # ETS
-fit <- hierEnergy %>% fill_gaps() %>% fill(value, .direction = "down") %>%
+fit <- hierEnergy %>% fill_gaps() %>% fill(value, .direction = "downup") %>%
   filter_index(~ "2021-03") %>%
   model(base = ETS(value)) %>%
   reconcile(
