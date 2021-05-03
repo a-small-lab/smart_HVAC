@@ -19,7 +19,7 @@ Considering HVAC usage accounts for 30% of total commercial building energy cons
 This project will investigate the first phase of determining if it possible to create a more efficient control policy for HVAC systems by developing a model of energy consumption calculated from system operation metrics, validating this model with a limited amount of actual collected energy usage data, and attempting to forecast energy demand with this data.
 
 # The data and the data-generating process
-The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab, the unit of measure for this project. Additionally, local weather data on humidity and atmospheric pressure necessary for  calculations, and local temperature data, a potential predictor of consumption, will also be obtained. 
+The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab. Additionally, local weather data on humidity, atmospheric pressure, and local temperature data from the KVACHARL114 station attached to Olsson hall will be obtained as potential predictors of energy consumption.
 
 ## Data
 ### Air Handling Unit Level Data
@@ -40,6 +40,47 @@ Values:
 - fanEnergy - Energy used by fan  (calculated, kW)
 
 ### Room Level Data
+Index:
+Time (30min)
+
+Key:
+Room in Olsson Hall
+
+Values: 
+- SAF - Supply Air Flow (CFM)
+- outputTemp - Reheated air temperature from room level treatment (deg C)
+- ZNT - Room temperature setpoint (deg C)
+- SAFSP - Supply air flow setpoint (CFM)
+- equipment - AHU which serves given room (AHU2E or AHU2W)
+- inputTemp - Air temperature from AHU given to room for reheat (deg C)
+- inputEnthalpy - Energy of input air (calculated, kW)
+- outputEnthalpy - Energy of output air (calculated, kW)
+- totalHeat - Energy used in reheat (calculated, kW)
+
+### Weather Data
+Index:
+Time (5min)
+
+Key:
+StationID, KVACHARL114
+
+Values:
+- humidityAvg - Average relative humidity over 5 min interval (%)
+- tempAvg - Average temperature over 5 min interval (deg C)
+- pressureMax - Maximum air pressure over 5 min interval (torr **need to confirm unit**)
+
+### Aggregated Energy 
+Index:
+Time (30min)
+
+Key:
+HVAC Air Handling Unit (AHU2E or AHU2W)
+
+Values:
+- totalHeat.AHU - Energy used in AHU level treatment (calculated, kW)
+- fanEnergy - Energy used by fan  (calculated, kW)
+- totalHeat.room -  Energy used in room level treatment (calculated, kW)
+- totalEnergy - sum of all three above energy categories (calculated, kW)
 
 
 Insert preview and graphs here

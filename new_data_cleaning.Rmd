@@ -162,7 +162,7 @@ rel = equip %>% select(SAT)
 rooms = left_join(rooms, rel, by=c("equipment", "time"))
 
 # rename columns for clarity
-colnames(rooms)[5] = "outputTemp"
+colnames(rooms)[4] = "outputTemp"
 colnames(rooms)[8] = "inputTemp"
 
 ```
