@@ -40,6 +40,8 @@ weather = weather %>% filter(!are_duplicated(weather, index=obsTimeLocal, key=st
 
 weather = as_tsibble(weather, index=obsTimeLocal, key=stationID) 
 
+save(weather, df, file= "data/rawData.RData")
+
 # # Read march data sample
 # df = read.csv("data\\OlssonLinklabMarch2021_Every30minutes.csv")
 # colnames(df) = c("Tagname", "TimeThirty", "Status", "TimeThirtyValue", "PointID")
@@ -111,6 +113,8 @@ filter(rooms, !is.na(time)) -> rooms
 
 equip = as_tsibble(equip, key = equipment, index = time)
 rooms = as_tsibble(rooms, key = room, index = time)
+
+save(equip, rooms, file = "data/preCalcData.RData")
 ```
 
 # Calculate Enthalpy for Mixed and supply Air, then total heat
@@ -184,9 +188,38 @@ totalEnergy$totalHeat = totalEnergy$totalHeat.AHU + totalEnergy$totalHeat.room
 totalEnergy$totalEnergy = totalEnergy$totalHeat + totalEnergy$fanEnergy
 ```
 
+# Import actual energy reading data
+```{r}
+buildingEnergy <- read.csv("data\\Olsson Hall Energy Data - Jan 2020 to May 2021.csv")
+
+buildingEnergy[,1:3] -> chilledWater
+colnames(chilledWater) = c("datasource", "timestamp", "value")
+
+buildingEnergy[, 5:7] -> electricity
+colnames(electricity) = c("datasource", "timestamp", "value")
+
+buildingEnergy[, 9:11] -> heating
+colnames(heating) = c("datasource", "timestamp", "value")
+
+rbind(chilledWater, electricity) %>% rbind(heating) %>% filter(!is.na(datasource)) -> buildingEnergy
+
+buildingEnergy$value =  as.numeric(buildingEnergy$value)
+buildingEnergy$timestamp = strptime(buildingEnergy$timestamp,"%m/%d/%Y %H:%M") %>% as.POSIXct()
+
+buildingEnergy %>% filter(datasource !="" & !is.na(timestamp)) -> buildingEnergy
+
+buildingEnergy %>% filter(datasource !="" & !is.na(timestamp)) %>% pivot_wider(names_from = datasource, values_from = value, values_fn = mean) -> buildingEnergy
+
+colnames(buildingEnergy) = c("time", "chilledWater", "electricity", "heating")
+
+as_tsibble(buildingEnergy, index = time) -> buildingEnergy
+
+```
+
+
 # Write cleaned data for later use
 ```{r}
-save(equip, rooms, totalEnergy, weather, file="data\\cleanedData.Rdata")
+save(equip, rooms, totalEnergy, weather, buildingEnergy, file="data\\cleanedData.Rdata")
 # write.csv(rooms, "data\\cleanedRooom.csv")
 # write.csv(equip, "data\\cleanedEquip.csv")
 # write.csv(totalHeatdf, "data\\calculatedHeat.csv")

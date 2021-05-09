@@ -21,7 +21,20 @@ This project will investigate the first phase of determining if it possible to c
 # The data and the data-generating process
 The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab. Additionally, local weather data on humidity, atmospheric pressure, and local temperature data from the KVACHARL114 station attached to Olsson hall will be obtained as potential predictors of energy consumption.
 
-## Data
+## The Data
+```{r}
+library(dplyr)
+library(forecast)
+library(fable)
+library(tidyverse)
+library(lubridate)
+library(fpp3)
+library(ggplot2)
+library(plotly)
+
+load(file="C:\\Users\\canea\\Documents\\UVA\\Spring 2021\\Timeseries\\neale-caleb\\data\\cleanedData.Rdata")
+```
+
 ### Air Handling Unit Level Data
 Index:
 Time (30min)
@@ -29,7 +42,7 @@ Time (30min)
 Key:
 HVAC Air Handling Unit (AHU2E or AHU2W)
 
-Values:
+Values of Interest:
 - SAT - Output Air Temperature (deg C)
 - MAT - Input Air Temperature  (deg C)
 - SAF - Air Supply Flow (CFM)
@@ -38,6 +51,11 @@ Values:
 - MAEnthalpy - Input air enthalpy (calculated, kW)
 - totalHeat - Change in enthalpy (calculated, kW)
 - fanEnergy - Energy used by fan  (calculated, kW)
+
+```{r}
+head(equip)
+```
+
 
 ### Room Level Data
 Index:
@@ -57,6 +75,11 @@ Values:
 - outputEnthalpy - Energy of output air (calculated, kW)
 - totalHeat - Energy used in reheat (calculated, kW)
 
+```{r}
+head(rooms)
+```
+
+
 ### Weather Data
 Index:
 Time (5min)
@@ -68,6 +91,11 @@ Values:
 - humidityAvg - Average relative humidity over 5 min interval (%)
 - tempAvg - Average temperature over 5 min interval (deg C)
 - pressureMax - Maximum air pressure over 5 min interval (torr **need to confirm unit**)
+
+```{r}
+head(weather)
+```
+
 
 ### Aggregated Energy 
 Index:
@@ -83,7 +111,10 @@ Values:
 - totalEnergy - sum of all three above energy categories (calculated, kW)
 
 
-Insert preview and graphs here
+```{r}
+head(totalEnergyDF %>% filter(!is.na(totalEnergy)))
+autoplot(totalEnergyDF, .vars = totalEnergy) + ylab("Calculated System Energy (kW)")
+```
 
 ## Data Generating Process
 
@@ -102,6 +133,7 @@ As treatment can occur at both the AHU and VAV box, enthaply change (change in e
 ### Weather Data
 Weather data was collected from **Need source for this data** using an API and then merged into the data using the times. The location of this weather data is **TBD** and was used to estimate local temperature, pressure, and relative humidity. **Check units**
 
+### Exploration of
 # Plan for Analysis
 The primary goal of this analysis is to generate an effective model of how HVAC system operation affects energy consumption over time, which can be divided into three parts:
 
@@ -127,9 +159,66 @@ q = air volume flow (m3/s)\
 ρ = density of air (1.202 kg/m3)\
 dh = enthalpy difference (kJ/kg)
 
+#### Load data
+```{r}
+load("C:\\Users\\canea\\Documents\\UVA\\Spring 2021\\Timeseries\\neale-caleb\\data\\preCalcData.RData")
+
+```
+
+#### Calculate Enthalpy for Mixed and supply Air, then total heat
+```{r}
+library(climateeng)
+
+#Define constants
+RHconstant = 0.010
+density = 1.202
+CFMtoM_SConverstionFactor = 0.00047194745
+
+# Calculate AHU level enthalpy
+equip$SAEnthalpy = enthalpy(equip$SAT, RHconstant) 
+equip$MAEnthalpy = enthalpy(equip$MAT, RHconstant)
+equip$totalHeat = abs(equip$SAEnthalpy -equip$MAEnthalpy)*CFMtoM_SConverstionFactor*equip$SAF*density
+
+```
+
+#### Get input air temp for each room
+```{r}
+# create table mapping room to equpment from system documentation
+AHU_2E <- c(241, 243, 245, 247, 249, 251, 253, 257, 255, 259, 263, 261, 240, "C244", 244, 260, 213, 217, 225, 218, "C230", 220, "C210", "T212", "T218", "C216", "C214", "T210", 256, 229, 231, 223, "C227", "C211", 254, "C250", 258, "C213", 221) 
+
+AHU_2W <- c(269, 267, 265, 273, 271, 275, 277, 279, 281, 283, 285, 274, 286, 204, 208, 272, 270, "C260", "C200", "C201", 203, 276, "C280", "C270", 211, 201)
+
+rooms_tbl <- rbind(tibble('room' = AHU_2E, 'equipment' = "AHU2E"), tibble('room' = AHU_2W, 'equipment' = "AHU2W"))
+
+# extract relevant information from room coding
+rooms$cleaned_room = str_extract(rooms$room, "C\\d{3}|^\\d{3}")
+
+# get relevant equipment for each room 
+rooms = left_join(rooms, rooms_tbl, by=c("cleaned_room" = "room"))
+
+rooms %>% filter(!is.na(room)) -> rooms
+
+rooms = rooms %>% select(-cleaned_room) -> rooms
+
+# get input air temperature for each room
+rel = equip %>% select(SAT)
+rooms = left_join(rooms, rel, by=c("equipment", "time"))
+
+# rename columns for clarity
+colnames(rooms)[3] = "outputTemp"
+colnames(rooms)[8] = "inputTemp"
+
+```
+
+#### Calculate energy consumption from room level treatment
+```{r}
+rooms$inputEnthalpy = enthalpy(rooms$inputTemp, RHconstant) 
+rooms$outputEnthalpy = enthalpy(rooms$outputTemp, RHconstant)
+rooms$totalHeat = abs(rooms$inputEnthalpy - rooms$outputEnthalpy)*CFMtoM_SConverstionFactor*rooms$SAF*density
+```
 
 ### Fans
-Power used by a fan can be calculated using equation 2, below. Pressure will be estimated using local weather data, fan efficiency will be assumed to be 60%, and air volume is measured.
+Power used by a fan can be calculated using equation 2, below. Pressure set to a constant typical of commercial HVAC fans, fan efficiency will be assumed to be 60%, and air volume is measured.
 
 #### Equation 2, Power Used by Fan
 **Zotero source**
@@ -142,30 +231,323 @@ dp = total pressure (Pa) \
 q = air volume delivered by the fan (m3/s)\
 P = power used by the fan (W, Nm/s)
 
+#### Fan Energy
+```{r}
+# Set constants
+fanEfficiencyCoef = 0.6
+pressure = 4000
+Wto_kW =1000
+
+# Calculate energy (2* for two fans)
+equip$fanEnergy = 2*equip$SAF*CFMtoM_SConverstionFactor*pressure/fanEfficiencyCoef/Wto_kW
+```
+
+
+### Create tsibble with room and AHU heat and Fan Energy
+```{r}
+rooms %>% group_by(equipment) %>% summarise(totalHeat = sum(totalHeat)) -> roomAHUHeat
+
+equip %>% select(totalHeat, fanEnergy) %>% inner_join(roomAHUHeat, by=c("time", "equipment"), suffix = c(".AHU", ".room")) -> totalEnergyDF
+
+totalEnergyDF$totalHeat = totalEnergyDF$totalHeat.AHU + totalEnergyDF$totalHeat.room
+totalEnergyDF$totalEnergy = totalEnergyDF$totalHeat + totalEnergyDF$fanEnergy
+```
+
+### Seasonality of Energy Consumption
+```{r}
+totalEnergyDF = fill_gaps(totalEnergyDF)
+gg_season(totalEnergyDF, totalEnergy, period = "week")
+gg_season(totalEnergyDF, totalEnergy, period = "day")
+gg_season(totalEnergyDF, totalEnergy, period = "month")
+```
+Energy consumption has a clear daily cycle where the system is off over night then turns on at a time early enough in the morning to ensure that the internal temperature in the building meets the setpoint by the time occupants arrive. The shifting start times throughout the year as seen on the daily seasonal plot are a result of this control mechanism which predicts how long the system will need to arrive at the setpoint given the current internal temperature and begins treatment accordingly. During colder/warmer seasons, internal temperature drifts farther from the setpoint overnight and thus takes longer to return to the setpoint.
+
+AHU2W appears to have a lower bound of energy consumption above that of AHU2E. Investigating the components of totalEnergy reveals that this lower bound comes from increased nighttime fan energy and AHU level energy consumption.
+```{r}
+gg_season(fill_gaps(equip), fanEnergy, period = "day") + ylab("Fan Energy (kW)")
+gg_season(fill_gaps(roomAHUHeat), totalHeat, period = "day") + ylab("Room Level Reheat Energy (kW)")
+gg_season(fill_gaps(equip), totalHeat, period = "day") + ylab("AHU Level Treatment Energy (kW)")
+```
+Breaking down energy consumption in this manner also reveals that fan energy consumption follows a daily cycle but is not as significantly influenced by time of year as room or AHU treatment consumption. Interestingly as well, though both AHU and room energy consumption show a yearly trend, they appear to be nearly inverse. Room consumption is highest on blue days and lowest on pink, while AHU consumption appears to be highest on orange and lowest on blue.
+
+### Investigate trends in relative energy consumption
+```{r}
+# get longform data for plotting
+totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2E") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2E
+
+totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2W") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2W
+
+# stacked area plots
+ggplot(data = longAHU2W, aes(x=time, y=value, fill=datapoint)) + geom_area()
+ggplot(data = longAHU2E, aes(x=time, y=value, fill=datapoint)) + geom_area()
+
+# proportional stacked area plots
+ggplot(longAHU2W, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+
+ggplot(longAHU2E, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+```
+It appears that room reheating uses a much larger proportion of the energy of the system in months where heating is more likely to be active than cooling and the proportion of energy expended on the fans increases dramatically as overall system energy use declines. Though we don't have a complete year of data, it appears shoulder seasons (fall/spring) consume less energy than winter/summer, in line with what we might expect given outdoor temperatures.
+
+### Relationship of Local Weather and Energy Consumption
+```{r}
+weather_merge = weather
+
+# shift weather data by a minute to allow for merging
+weather_merge$obsTimeLocal = weather_merge$obsTimeLocal + 60
+
+# merge data
+left_join(totalEnergyDF, weather_merge, by=c("time" = "obsTimeLocal")) %>% filter(!is.na(totalEnergy))-> weather_energy
+
+# plot, filtering out low energy values for when HVAC system is "off"
+ggplot(data = weather_energy %>% filter(totalEnergy > 50), aes(x=tempAvg, y=totalEnergy)) + geom_point() + geom_smooth()
+```
+As the previous charts showing lower consumption in shoulder seasons implied, energy consumption appears to be roughly quadratic with respect to temperature. 
+
 ## Validation of Estimated Energy Consumption
-**develop statistically sound estimation procedure outside of inspection?**
 Historical data is available for building-wide energy consumption, divided into:
 
-- Chilled water (cooling)
-- Steam (heating)
-- Electricity
+- chilledWater (cooling)
+- heating 
+- electricity
+
+```{r}
+head(buildingEnergy)
+```
 
 As HVAC operation represents a significant part of building energy consumption, we would expect that trends in and changes of HVAC system energy consumption would closely track with building wide energy consumption. Calculated historical energy consumption is plotted next to building-wide energy consumption for inspection:
 
-**insert plot here**
+### Determine cooling state and evalutate relationship of calculated energy consumption in cooling state and actual historical chilled water consumption 
+```{r}
+library(plotly)
 
-## Forecasting
+equip %>% filter(!is.na(SAT) & !is.na(MAT)) -> equipVerify
+
+# determine cooling status based on comparative temperature of input and output air 
+equipVerify <- equipVerify %>% mutate(cooling = 
+  if_else(
+    MAT > SAT, 1, 0
+  )
+)
+
+left_join(equipVerify, buildingEnergy, by="time") -> coolingVerify
+
+coolingVerify <- coolingVerify %>% filter(cooling == 1) %>% as_tsibble(key = equipment, index = time)
+
+# plot and model actual cooling energy consumption as a funciton of calcualted heating consumption
+ggplot(data = coolingVerify, aes(x=chilledWater, y=totalHeat)) + geom_point() + geom_smooth(method = "lm")
+
+fig <- plot_ly(coolingVerify, x = ~time, y = ~totalHeat, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+fig %>% add_trace(y = ~(chilledWater*1000)/3412.142, name = 'Chilled Water', mode = 'lines')
+
+coolingLM = lm(chilledWater~totalHeat, data = coolingVerify)
+
+summary(coolingLM)
+```
+A linear relationship between the calculated amount of energy used in cooling and historical chilled water consumption appears to exist, though a linear model between these two quantities shows an R^2 of 0.1844. This suggests that tuning within set parameters used in calculated energy consumption might improve the accuracy of the calculations.
+
+### Evalutate relationship of calculated energy consumption in heating state and actual historical chilled water consumption 
+```{r}
+
+# aggregate room level contributions to energy consumption by AHU
+rooms %>% group_by(equipment) %>% summarise(totalHeat = sum(totalHeat)) -> roomAHUHeat
+
+# join  room and equipment level data
+equip %>% inner_join(roomAHUHeat, by=c("time", "equipment"), suffix = c(".AHU", ".room")) -> totalEnergyDF
+
+# create DF for enery verificaiton and determine heating status based on comparative temperature of input and output air
+totalEnergyDF %>% filter(!is.na(SAT) & !is.na(MAT)) -> totalEnergyDFVerify
+
+totalEnergyDFVerify <- totalEnergyDFVerify %>%
+  mutate(isHeating = if_else(
+    SAT > MAT, 1, 0
+    )
+  )
+
+# join in actual energy consumption data
+left_join(totalEnergyDFVerify, buildingEnergy, by="time") -> heatingVerify
+
+heatingVerify %>% filter(!is.na(heatingVerify$isHeating)) -> heatingVerify
+
+# calculate total heating energy based on AHU heating status 
+heatingVerify <- heatingVerify %>%
+  mutate(heatEnergyCalc = if_else(
+    isHeating == 1, totalHeat.AHU + totalHeat.room, totalHeat.room
+    )
+  )
+
+# plot and model actual heating energy consumption as a funciton of calcualted heating consumption
+ggplot(data = heatingVerify, aes(x=heating, y=heatEnergyCalc)) + geom_point() + geom_smooth(method = "lm")
+
+fig <- plot_ly(heatingVerify, x = ~time, y = ~heatEnergyCalc, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+
+# heating is adjusted from kBTU to kW
+fig %>% add_trace(y = ~(heating*1000)/3412.142, name = 'Heating', mode = 'lines')
+
+heatingLM = lm(heating~heatEnergyCalc, data = heatingVerify)
+
+summary(heatingLM)
+
+```
+Modeling actual heat energy consumption as a linear function of calculated heat consumption results in an R^2 of only 
+0.084, though the model performs better than the null. 
+
+Further investigation is clearly needed to determine whether there are other significant contributors to consumption of heating and cooling energy within the building, or if the model needs more development (tuning of constant parameters used in calclations potentially). As a further point of research, having energy readings directly metered from the HVAC unit would likely provide significantly more accurate data, especially if developing an improved control mechanism is ever attempted.
 
 
+# Formal model of data-generating process
+Given the previously shown daily cycle of the data, shoulder season behaviour, and quadratic relationship with local temperate, regression with ARIMA errors seems a reasonable place to begin to model the data generating process behind total energy use in the system. 
 
-# Formal model of data-generating process - PRELIMINARY
-What kind of process is it? AR(p)? White noise with drift? Something else?
-Write down an equation expressing each realization of the stochastic process yt as a function of other observed data (which could include lagged values of y), unobserved parameters (β), and an error term (εt). Ex:
-y=X⋅β+ε
-Add a model of the error process. Ex: ε N(0,σ2IT).
-If applicable: describe any transformations of the data (e.g., differencing, taking logs) you need to make to get the data into a form (e.g., linear) ready for numerical analysis.
+An investigation of lags and autocorrelation will provide the basis for the parameter selection of the ARIMA model.
+
+## Lag Plots
+```{r}
+# retreive cleaned data, fill gaps
+load("C:/Users/canea/Documents/UVA/Spring 2021/Timeseries/neale-caleb/data/cleanedData.Rdata")
+totalEnergyDF = totalEnergyDF %>% fill_gaps()
+
+totalEnergyDF %>% select(totalEnergy) %>% filter(equipment == "AHU2E") %>% gg_lag(y=totalEnergy, geom = "point")
+totalEnergyDF %>% select(totalEnergy) %>% filter(equipment == "AHU2W") %>% gg_lag(y=totalEnergy, geom = "point")
+```
+
+Potentially given the lower bound previously seen on AHU2W energy consumption, a stronger relationship appears in the lags of AHU2E than AHU2W. 
+
+## Autocorrelation Plots
+```{r}
+# ACFs
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% ACF(totalEnergy, lag_max = 140) %>% autoplot() + ylab("AHU2E ACF")
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% ACF(totalEnergy, lag_max = 140) %>% autoplot() + ylab("AHU2W ACF")
+
+# PACFs
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% PACF(totalEnergy, lag_max = 140) %>% autoplot() + ylab("AHU2E PACF")
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(totalEnergy, lag_max = 140) %>% autoplot() + ylab("AHU2W PACF")
+```
+Given a 48 period lag corresponds to one day, the behaviour seen in the ACF plots show exactly what we might expect; ACF is highest at multiples of 24 hours from a given point. PACF plots also show highest PACF values at about the 24 hour mark, though additional 24 hour extensions provide significantly less information. 
+
+However, given the likely yearly seasonality of the data, an investigation into the differences of the data is needed.
+
+## Differencing
+```{r}
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% gg_tsdisplay(difference(totalEnergy), plot_type = "partial", lag_max = 140)
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% gg_tsdisplay(difference(totalEnergy), plot_type = "partial", lag_max = 140)
+```
+## Preliminary ARIMA Modeling
+The ACF is suggestive of an MA(52) model while the PACF suggests an AR(54) model, so ARIMA(0, 1, 52) and ARIMA(54, 1, 0) will be part of the initially fit models. However, a more appropriate approach would likely be setting the seasonality of the data to daily (48 periods) and attempting ARIMA from there. This may not accurately address yearlong seasonal trends, but weather data may account for this in a synamic regression model.
+
+```{r}
+# create univariate TS object and inform it of 48 period seasonality
+univar = ts(totalEnergyDF, frequency = 48)[,7]
+
+# create model and forecast for 100 days
+auto.arima(univar) -> univarARIMA
+UAfc <- forecast(univarARIMA, h=4800)
+
+# plot forecast
+plot(UAfc, xlim=c(540, 600), ylim=c(0,175))
+
+```
+This model seems to capture the daily cycle of energy consumption quite well, but doesn't well account for the influence of temperature or the general variation in the data. To determine if another ARIMA model would perform better, I'll use fable::ARIMA to investigate three additional ARIMA models before attempting dynamic regression with ARIMA errors.
+
+## ARIMA Model Search
+
+```{r}
+
+# Create models using fable::ARIMA for better plotting interface
+models <- totalEnergyDF %>% 
+  filter(equipment == "AHU2E") %>% 
+  model(stepwise = ARIMA(totalEnergy),
+        search = ARIMA(totalEnergy, stepwise = FALSE),
+        seasonal = ARIMA(totalEnergy ~ PDQ(period=48)))
+
+models %>% select(seasonal) -> seasonal
+models %>% select(stepwise) -> stepwise
+models %>% select(search) -> search
+
+# plots residuals
+seasonal %>% gg_tsresiduals()
+stepwise %>% gg_tsresiduals()
+search %>% gg_tsresiduals()
+
+# weekly seasonal plot of residuals
+residuals(seasonal) %>%
+  as_tsibble(key=.model, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+residuals(stepwise) %>%
+  as_tsibble(key=.model, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+residuals(search) %>%
+  as_tsibble(key=.model, index=time) %>%
+  gg_season(y=.resid, period = "week")
+```
+It appears the seasonal model has residuals which are the most normally distributed and which most approach white noise. Seasonal plots also show more balance compared to the large spikes at the beginning and end of each day in the search and stepwise models. Evaluating forecasts gives a clearer picture.
+
+```{r}
+search %>% forecast(h=480) -> searchFC
+stepwise %>% forecast(h=480) -> stepwiseFC
+seasonal %>% forecast(h=480) -> seasonalFC
+
+searchFC %>% autoplot()
+stepwiseFC %>% autoplot()
+seasonalFC %>% autoplot()
+```
+Only the model with a 48 seasonal term captures any of the daily cycle in the data, whereas the other two models seems to take a blind guess at the mean value of the process.
+
+## Dynamic Regression with ARIMA Errors
+
+The ARIMA model seems to capture the daily cycle in the data well, but daily and seasonal variation exists and this variation could likely be explained by daily and seasonal changes in outdoor temperatures. To capture this variation, dynamic regression with ARIMA error can be applied. 
+```{r}
+# NOTE: On my machine, these models takes a while to train (about 20-30 minutes). Saved versions of the models are saved in the "models" folder in this repository and can be loaded using "load('models/[modelname].RData')" for faster computing.
+
+dynReg <- weather_energy %>% 
+  fill_gaps() %>%
+  filter(equipment == "AHU2E") %>% 
+  model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
+
+report(dynReg)
+
+dynReg %>% gg_tsresiduals()
+
+residuals(dynReg) %>%
+  as_tsibble(key=.model, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+dynRegTrain <- weather_energy %>% 
+  fill_gaps() %>%
+  filter(equipment == "AHU2E") %>% 
+  filter(time < dmy_h("1-04-2021 00")) %>%
+  model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
+
+dynRegfc <- forecast(dynRegTrain, new_data = weather_energy %>% 
+  fill_gaps() %>%
+  filter(equipment == "AHU2E") %>% 
+  filter(time >= dmy_h("1-04-2021 00")))
+
+report(dynRegTrain)
+
+dynRegTrain %>% gg_tsresiduals()
+
+residuals(dynRegTrain) %>%
+  as_tsibble(key=.model, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+autoplot(dynRegfc, weather_energy %>% filter(time >= dmy_h("1-04-2021 00")))
+```
+This dynamic regression model seems to be the best at capturing additional daily variation which may be attributed to temperature. Looking at the residuals on a weekly basisi over the year, it can be seen that the yearly seasonal component is not being completely accounted for, especially in the changing startup time of the system over the course of the year.
+
+## Model of the Data Generating Process
+The data generating process for system energy consumption can be modeled as a dynamic regression with ARIMA errors in the form:
+
+y = β_0 + β_1\*tempAvg + β_2\*tempAvg^2 + ε
+
+where ε is ARIMA (5,0,0,)(1,1,0)[48]
+
 
 # Discussion of the statistical model
+
+
 Describe how the formal statistical model captures and aligns with the narrative of the data-generating process.
 Flag any statistical challenges raised by the data generating process, e.g.
 selection bias; survivorship bias
