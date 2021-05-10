@@ -1,29 +1,38 @@
 ---
-title: "Project Proposal (Draft)"
+title: "Calculating and Forecasting HVAC System Energy Consumption"
 author: "Caleb Neale"
 date: "Spring 2021"
 output:
-  pdf_document: default
-  html_notebook: default
-subtitle: Optimizing HVAC Operation for Occupant Comfort and Energy Savings
-editor_options: 
+  pdf_document:
+    latex_engine: xelatex
+subtitle: 'SYS 5581: Timseseries and Forecasting'
+bibliography: bibliography.bib
+editor_options:
   chunk_output_type: inline
 ---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
 # Abstract
+Commercial Heating, Ventilation, and Cooling (HVAC) systems contribute significantly to US energy consumption, but the ability to forecast and model HVAC energy usage can be difficult without dedicated metering. This in turn makes simulation studies for the purpose of energy efficiency optimization difficult. This study aims to establish a model for effectively calculating HVAC energy usage without direct metering by leveraging engineering equations based on collected data on system dynamics. 
+
+Using calculated energy consumption, a forecasting model will be generated to predict future energy consumption. The generated model suggests that a dynamic regression model leveraging local temperature with ARIMA errors is an effective predictor of calculated energy use.
+
+However, limitations on the accuracy of calculated energy consumption were found and further tuning of the parameters used in the equations would be necessary to achieve calculations useful enough for effective simulation and energy efficiency optimization. Additionally, longer data histories would allow for the proper modeling of yearly seasonal energy consumption changes where this model likely falls short.
 
 # Introduction
 In UVA's LinkLab, as a part of the Living Link Lab Program, there is a significant amount of environmental, occupancy data, and HVAC system operational data available for analysis. This presents an opportunity for a detailed case study of the performance of an HVAC system among multiple metrics outside of just temperature and humidity with the intention of improving HVAC control systems' ability to maintain occupant comfort with reduced energy consumption. Investigation of multiple metrics of occupant comfort, whether a given room even has occupants which require comfort, various metrics of system operation, and energy consumption consumption (actual and calculated) has the potential to produce a environmental model which may aid in the development of an improved policy for the HVAC system control problem. 
 
-Considering HVAC usage accounts for 30% of total commercial building energy consumption (US Dept. of Energy Commissioned Report on Energy Savings Potential and RD&D Opportunities for Commercial Building HVAC Systems, 2017), there is significant environmental and economic incentive to reducing the energy load of HVAC systems both for regulators and commercial operators. This same commissioned report cites "Technology Enhancements for Current Systems" as one of four groups of high priority technology options, with  "Advanced HVAC Sensors" as the top ranked technology within this category at an estimated Technical Energy Savings Potential (Quadrillion BTU/yr.) of 0.63, lending particular credence to the idea that advanced sensing combined with more efficient control could be a significant contributor to reduced HVAC system burden on energy resources.
+Considering HVAC usage accounts for 30% of total commercial building energy consumption @goetzlerEnergySavingsPotential2017, there is significant environmental and economic incentive to reducing the energy load of HVAC systems both for regulators and commercial operators. This same commissioned report cites "Technology Enhancements for Current Systems" as one of four groups of high priority technology options, with  "Advanced HVAC Sensors" as the top ranked technology within this category at an estimated Technical Energy Savings Potential (Quadrillion BTU/yr.) of 0.63, lending particular credence to the idea that advanced sensing combined with more efficient control could be a significant contributor to reduced HVAC system burden on energy resources.
 
 This project will investigate the first phase of determining if it possible to create a more efficient control policy for HVAC systems by developing a model of energy consumption calculated from system operation metrics, validating this model with a limited amount of actual collected energy usage data, and attempting to forecast energy demand with this data.
 
-# The data and the data-generating process
-The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the Link Lab. Additionally, local weather data on humidity, atmospheric pressure, and local temperature data from the KVACHARL114 station attached to Olsson hall will be obtained as potential predictors of energy consumption.
+# The Data and the Data-generating Process
+The data which will be analyzed consists of data exported from an internal UVA server which hosts all HVAC system data related to Olsson Hall and the 2nd floor Link Lab. Additionally, local weather data on humidity, atmospheric pressure, and local temperature data from the KVACHARL114 station attached to Olsson hall will be obtained as potential predictors of energy consumption. Finally, although energy data from the individual HVAC units under consideration is not available, building-wide energy consumption data is available for Olsson Hall.
 
 ## The Data
-```{r}
-library(dplyr)
+```{r, include=FALSE}
 library(forecast)
 library(fable)
 library(tidyverse)
@@ -32,7 +41,7 @@ library(fpp3)
 library(ggplot2)
 library(plotly)
 
-load(file="C:\\Users\\canea\\Documents\\UVA\\Spring 2021\\Timeseries\\neale-caleb\\data\\cleanedData.Rdata")
+load(file="data\\cleanedData.Rdata")
 ```
 
 ### Air Handling Unit Level Data
@@ -90,7 +99,7 @@ StationID, KVACHARL114
 Values:
 - humidityAvg - Average relative humidity over 5 min interval (%)
 - tempAvg - Average temperature over 5 min interval (deg C)
-- pressureMax - Maximum air pressure over 5 min interval (torr **need to confirm unit**)
+- pressureMax - Maximum air pressure over 5 min interval (hPa)
 
 ```{r}
 head(weather)
@@ -115,11 +124,26 @@ Values:
 head(totalEnergyDF %>% filter(!is.na(totalEnergy)))
 autoplot(totalEnergyDF, .vars = totalEnergy) + ylab("Calculated System Energy (kW)")
 ```
+### Building Energy
+Index:
+Time (30min)
+
+Key:
+N/A
+
+Values:
+- chilledWater - Energy used in cooling/chilled water for the building (kBTU/h)
+- electricity - Electricity used by building (kW)
+- heating -  Energy used building-wide heating (kBTU/h)
+
+```{r}
+head(buildingEnergy)
+```
 
 ## Data Generating Process
 
 ### System Description and Terminology
-The HVAC system under consideration is a VAV (variable air volume) system which consists of two air handling units (AHU) and VAV boxes. VAV systems manage the temperature of the different rooms in the building by providing specific volumes of air to each room using equipment known as VAV boxes. At the VAV box, air may be reheated to provide the room with the correct temperature of air needed to maintain the environment at the given setpoint. Our simplified model of the AHU consists of hot and cold water coils for heating/cooling, a return air fan, and a supply air fan. Each VAV box consists of a vent regulating air volume and a heating coil. 
+The HVAC system under consideration is a VAV (variable air volume) system which consists of two air handling units (AHU) and VAV boxes. Initial treatment (heating/cooling) for air in the building is done at the air handling unit. VAV systems manage the temperature of the different rooms in the building by providing specific volumes of air to each room using VAV boxes. At the VAV box, air may be reheated (after having been initially treated at the AHU) to provide the room with the correct temperature of air needed to maintain the room at its given setpoint. The simplified model used here of the AHU consists of hot and cold water coils for heating/cooling, a return air fan, and a supply air fan. Each VAV box consists of a vent regulating air volume and a heating coil. 
 
 ### Definitions of Air Types
 Return air is defined as air which is being returned from the conditioned environment. In this system, return air is mixed with outdoor air to produce mixed air. Mixed air serves as the input to the conditioning system at the AHU level. Once the air is treated (heating/cooling, humidity removal) by the AHU, it is output as supply air. This supply air is then provided to each VAV box for additional heating as needed, producing final supply air. As this lack of distinction between these two versions of "supply air" may be confusing, this analysis will adopt the terms "input air" and "output air" when discussing both the VAV and AHU treatment processes.
@@ -128,28 +152,26 @@ Return air is defined as air which is being returned from the conditioned enviro
 Air supply flow is measured at the VAV box level and aggregated to determine AHU air volumes.
 
 ### Enthalpy Change
-As treatment can occur at both the AHU and VAV box, enthaply change (change in energy due to heating/cooling and humidity removal) must be calculated at both stages and then aggregated to find total enthalpy change at a given time. 
+As treatment can occur at both the AHU and VAV box, enthalpy change (change in energy due to heating/cooling and humidity removal) must be calculated at both stages and then aggregated to find total enthalpy change at a given time. 
 
 ### Weather Data
-Weather data was collected from **Need source for this data** using an API and then merged into the data using the times. The location of this weather data is **TBD** and was used to estimate local temperature, pressure, and relative humidity. **Check units**
+Weather data was collected from KVACHARL114, a weather station located at Olsson Hall. Data can be previewed at https://www.wunderground.com/dashboard/pws/KVACHARL114.
 
-### Exploration of
 # Plan for Analysis
-The primary goal of this analysis is to generate an effective model of how HVAC system operation affects energy consumption over time, which can be divided into three parts:
+The primary goal of this analysis is to generate an effective model of HVAC system energy consumption over time. To do this, a model of HVAC energy consumption based on system dynamics is needed as historical energy consumption data is not available at the HVAC unit level, only for the building in aggregate. Modeling of the system can thus be divided into three steps:
 
 - Calculate estimated HVAC energy consumption using historical data on operational metrics
 - Validate estimated energy consumption with historical, building-wide energy consumption data; update parameters and assumptions as necessary
 - Create a statistical model of energy consumption in the HVAC system and generate a forecast with this model
 
-
 ##  Calculate Energy Usage from HVAC Operational Metrics
-The primary usages of energy in this HVAC system come from treatment at the AHU, treatment at the VAV box, and fan operation in the AHU. Calculations for treatment at the AHU and VAV box level leverage the same equations, and fan equations can be leveraged to estimate fan energy usage.
+The primary drivers of energy use in this HVAC system come from treatment at the AHU, treatment at the VAV box, and fan operation in the AHU. Calculations for treatment at the AHU and VAV box level leverage the same equations, and fan equations can be leveraged to estimate fan energy usage.
 
 ### Air Treatment
-The change in energy due to air treatment (at either AHU or VAV) can be divided into latent and sensible heat. Changes in latent heat arise from humidity added or removed from the air whereas sensible heat is affected by changes in air temperature. Enthalpy change accounts for both latent and sensible heat as is calculated using **fix with Zotero** (https://rdrr.io/github/chrras/climateeng/man/). Equation 1, below, can then be used to determine total heat by combining calculated enthalpy change with collected data on air volume flow.
+The change in energy due to air treatment (at either AHU or VAV) can be divided into latent and sensible heat. Changes in latent heat arise from humidity added or removed from the air whereas sensible heat is affected by changes in air temperature. Enthalpy change accounts for both latent and sensible heat as is calculated the climateeng package @ChrrasClimateengDocumentation. Equation 1, below, can then be used to determine total heat by combining calculated enthalpy change with collected data on air volume flow.
 
 #### Equation 1, Latent and Sensible Heat
-**Zotero source**
+@CoolingHeatingEquations
 h_t = ρ\*q\*dh
 
 where:
@@ -159,13 +181,13 @@ q = air volume flow (m3/s)\
 ρ = density of air (1.202 kg/m3)\
 dh = enthalpy difference (kJ/kg)
 
-#### Load data
+#### Load Data
 ```{r}
-load("C:\\Users\\canea\\Documents\\UVA\\Spring 2021\\Timeseries\\neale-caleb\\data\\preCalcData.RData")
+load("data\\preCalcData.RData")
 
 ```
 
-#### Calculate Enthalpy for Mixed and supply Air, then total heat
+#### Calculate Enthalpy for Mixed and Supply Air, then Total Heat
 ```{r}
 library(climateeng)
 
@@ -181,9 +203,9 @@ equip$totalHeat = abs(equip$SAEnthalpy -equip$MAEnthalpy)*CFMtoM_SConverstionFac
 
 ```
 
-#### Get input air temp for each room
+#### Get Input Air Temp for Each Room Using AHU Output Temp
 ```{r}
-# create table mapping room to equpment from system documentation
+# create table mapping room to equipment from system documentation
 AHU_2E <- c(241, 243, 245, 247, 249, 251, 253, 257, 255, 259, 263, 261, 240, "C244", 244, 260, 213, 217, 225, 218, "C230", 220, "C210", "T212", "T218", "C216", "C214", "T210", 256, 229, 231, 223, "C227", "C211", 254, "C250", 258, "C213", 221) 
 
 AHU_2W <- c(269, 267, 265, 273, 271, 275, 277, 279, 281, 283, 285, 274, 286, 204, 208, 272, 270, "C260", "C200", "C201", 203, 276, "C280", "C270", 211, 201)
@@ -210,7 +232,7 @@ colnames(rooms)[8] = "inputTemp"
 
 ```
 
-#### Calculate energy consumption from room level treatment
+#### Calculate Energy Consumption From Room Level Treatment
 ```{r}
 rooms$inputEnthalpy = enthalpy(rooms$inputTemp, RHconstant) 
 rooms$outputEnthalpy = enthalpy(rooms$outputTemp, RHconstant)
@@ -221,7 +243,7 @@ rooms$totalHeat = abs(rooms$inputEnthalpy - rooms$outputEnthalpy)*CFMtoM_SConver
 Power used by a fan can be calculated using equation 2, below. Pressure set to a constant typical of commercial HVAC fans, fan efficiency will be assumed to be 60%, and air volume is measured.
 
 #### Equation 2, Power Used by Fan
-**Zotero source**
+@FansEfficiencyPower
 P = dp*q/mu
 
 where:
@@ -243,7 +265,7 @@ equip$fanEnergy = 2*equip$SAF*CFMtoM_SConverstionFactor*pressure/fanEfficiencyCo
 ```
 
 
-### Create tsibble with room and AHU heat and Fan Energy
+### Create tsibble with Room and AHU heat and Fan Energy
 ```{r}
 rooms %>% group_by(equipment) %>% summarise(totalHeat = sum(totalHeat)) -> roomAHUHeat
 
@@ -262,7 +284,7 @@ gg_season(totalEnergyDF, totalEnergy, period = "month")
 ```
 Energy consumption has a clear daily cycle where the system is off over night then turns on at a time early enough in the morning to ensure that the internal temperature in the building meets the setpoint by the time occupants arrive. The shifting start times throughout the year as seen on the daily seasonal plot are a result of this control mechanism which predicts how long the system will need to arrive at the setpoint given the current internal temperature and begins treatment accordingly. During colder/warmer seasons, internal temperature drifts farther from the setpoint overnight and thus takes longer to return to the setpoint.
 
-AHU2W appears to have a lower bound of energy consumption above that of AHU2E. Investigating the components of totalEnergy reveals that this lower bound comes from increased nighttime fan energy and AHU level energy consumption.
+AHU2W appears to have a lower bound of energy consumption above that of AHU2E. Investigating the components of totalEnergy reveals that this lower bound comes from increased nighttime fan energy and AHU level energy consumption compared to AHU2E.
 ```{r}
 gg_season(fill_gaps(equip), fanEnergy, period = "day") + ylab("Fan Energy (kW)")
 gg_season(fill_gaps(roomAHUHeat), totalHeat, period = "day") + ylab("Room Level Reheat Energy (kW)")
@@ -270,7 +292,7 @@ gg_season(fill_gaps(equip), totalHeat, period = "day") + ylab("AHU Level Treatme
 ```
 Breaking down energy consumption in this manner also reveals that fan energy consumption follows a daily cycle but is not as significantly influenced by time of year as room or AHU treatment consumption. Interestingly as well, though both AHU and room energy consumption show a yearly trend, they appear to be nearly inverse. Room consumption is highest on blue days and lowest on pink, while AHU consumption appears to be highest on orange and lowest on blue.
 
-### Investigate trends in relative energy consumption
+### Investigate Trends in Relative Energy Consumption
 ```{r}
 # get longform data for plotting
 totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2E") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2E
@@ -278,15 +300,15 @@ totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2
 totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2W") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2W
 
 # stacked area plots
-ggplot(data = longAHU2W, aes(x=time, y=value, fill=datapoint)) + geom_area()
-ggplot(data = longAHU2E, aes(x=time, y=value, fill=datapoint)) + geom_area()
+ggplot(data = longAHU2W, aes(x=time, y=value, fill=datapoint)) + geom_area() +ylab("Energy (kW)") + ggtitle("AHU2W")
+ggplot(data = longAHU2E, aes(x=time, y=value, fill=datapoint)) + geom_area() +ylab("Energy (kW)")+ ggtitle("AHU2E")
 
 # proportional stacked area plots
 ggplot(longAHU2W, aes(x=time, y=value, fill=datapoint)) + 
-    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues") +ylab("Proportion of Energy Use") + ggtitle("AHU2W")
 
 ggplot(longAHU2E, aes(x=time, y=value, fill=datapoint)) + 
-    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues") +ylab("Proportion of Energy Use") + ggtitle("AHU2E")
 ```
 It appears that room reheating uses a much larger proportion of the energy of the system in months where heating is more likely to be active than cooling and the proportion of energy expended on the fans increases dramatically as overall system energy use declines. Though we don't have a complete year of data, it appears shoulder seasons (fall/spring) consume less energy than winter/summer, in line with what we might expect given outdoor temperatures.
 
@@ -320,8 +342,6 @@ As HVAC operation represents a significant part of building energy consumption, 
 
 ### Determine cooling state and evalutate relationship of calculated energy consumption in cooling state and actual historical chilled water consumption 
 ```{r}
-library(plotly)
-
 equip %>% filter(!is.na(SAT) & !is.na(MAT)) -> equipVerify
 
 # determine cooling status based on comparative temperature of input and output air 
@@ -335,11 +355,12 @@ left_join(equipVerify, buildingEnergy, by="time") -> coolingVerify
 
 coolingVerify <- coolingVerify %>% filter(cooling == 1) %>% as_tsibble(key = equipment, index = time)
 
-# plot and model actual cooling energy consumption as a funciton of calcualted heating consumption
+# plot and model actual cooling energy consumption as a function of calculated heating consumption
 ggplot(data = coolingVerify, aes(x=chilledWater, y=totalHeat)) + geom_point() + geom_smooth(method = "lm")
 
-fig <- plot_ly(coolingVerify, x = ~time, y = ~totalHeat, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
-fig %>% add_trace(y = ~(chilledWater*1000)/3412.142, name = 'Chilled Water', mode = 'lines')
+## Interactive plots not compatible with PDF output
+# fig <- plot_ly(coolingVerify, x = ~time, y = ~totalHeat, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+# fig %>% add_trace(y = ~(chilledWater*1000)/3412.142, name = 'Chilled Water', mode = 'lines')
 
 coolingLM = lm(chilledWater~totalHeat, data = coolingVerify)
 
@@ -356,7 +377,7 @@ rooms %>% group_by(equipment) %>% summarise(totalHeat = sum(totalHeat)) -> roomA
 # join  room and equipment level data
 equip %>% inner_join(roomAHUHeat, by=c("time", "equipment"), suffix = c(".AHU", ".room")) -> totalEnergyDF
 
-# create DF for enery verificaiton and determine heating status based on comparative temperature of input and output air
+# create DF for energy verification and determine heating status based on comparative temperature of input and output air
 totalEnergyDF %>% filter(!is.na(SAT) & !is.na(MAT)) -> totalEnergyDFVerify
 
 totalEnergyDFVerify <- totalEnergyDFVerify %>%
@@ -377,13 +398,14 @@ heatingVerify <- heatingVerify %>%
     )
   )
 
-# plot and model actual heating energy consumption as a funciton of calcualted heating consumption
+# plot and model actual heating energy consumption as a function of calculated heating consumption
 ggplot(data = heatingVerify, aes(x=heating, y=heatEnergyCalc)) + geom_point() + geom_smooth(method = "lm")
 
-fig <- plot_ly(heatingVerify, x = ~time, y = ~heatEnergyCalc, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+# # Interactive plots not compatible with PDF output
+# fig <- plot_ly(heatingVerify, x = ~time, y = ~heatEnergyCalc, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
 
-# heating is adjusted from kBTU to kW
-fig %>% add_trace(y = ~(heating*1000)/3412.142, name = 'Heating', mode = 'lines')
+# # heating is adjusted from kBTU to kW
+# fig %>% add_trace(y = ~(heating*1000)/3412.142, name = 'Heating', mode = 'lines')
 
 heatingLM = lm(heating~heatEnergyCalc, data = heatingVerify)
 
@@ -391,19 +413,18 @@ summary(heatingLM)
 
 ```
 Modeling actual heat energy consumption as a linear function of calculated heat consumption results in an R^2 of only 
-0.084, though the model performs better than the null. 
+0.084 though calculated heat is determined to be a significant predictor with a p-value < 0.001. 
 
-Further investigation is clearly needed to determine whether there are other significant contributors to consumption of heating and cooling energy within the building, or if the model needs more development (tuning of constant parameters used in calclations potentially). As a further point of research, having energy readings directly metered from the HVAC unit would likely provide significantly more accurate data, especially if developing an improved control mechanism is ever attempted.
-
+Further investigation is clearly needed to determine whether there are other significant contributors to consumption of heating and cooling energy within the building, or if the model needs more development (tuning of constant parameters used in calculations, specifically relative humidity, fan efficiency, and total pressure, would likely be a good place to start). As a further point of research, having energy readings directly metered from the HVAC unit would be the only fully reliable way to determine energy usage, especially if developing an improved control mechanism is ever attempted.
 
 # Formal model of data-generating process
-Given the previously shown daily cycle of the data, shoulder season behaviour, and quadratic relationship with local temperate, regression with ARIMA errors seems a reasonable place to begin to model the data generating process behind total energy use in the system. 
+Given the previously shown daily cycle of the data, shoulder season behaviour, and quadratic relationship with local temperature, regression with ARIMA errors seems a reasonable place to begin to model the data generating process behind total energy use in the system. 
 
 An investigation of lags and autocorrelation will provide the basis for the parameter selection of the ARIMA model.
 
 ## Lag Plots
 ```{r}
-# retreive cleaned data, fill gaps
+# retrieve cleaned data, fill gaps
 load("C:/Users/canea/Documents/UVA/Spring 2021/Timeseries/neale-caleb/data/cleanedData.Rdata")
 totalEnergyDF = totalEnergyDF %>% fill_gaps()
 
@@ -425,7 +446,7 @@ totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(totalEnergy, lag_max = 1
 ```
 Given a 48 period lag corresponds to one day, the behaviour seen in the ACF plots show exactly what we might expect; ACF is highest at multiples of 24 hours from a given point. PACF plots also show highest PACF values at about the 24 hour mark, though additional 24 hour extensions provide significantly less information. 
 
-However, given the likely yearly seasonality of the data, an investigation into the differences of the data is needed.
+However, given the potential for trends in the data, an investigation into the differences of the data is needed.
 
 ## Differencing
 ```{r}
@@ -433,7 +454,7 @@ totalEnergyDF %>% filter(equipment == "AHU2E") %>% gg_tsdisplay(difference(total
 totalEnergyDF %>% filter(equipment == "AHU2W") %>% gg_tsdisplay(difference(totalEnergy), plot_type = "partial", lag_max = 140)
 ```
 ## Note on Modeling
-On my machine, the models in the following sections take a while to train (about 20-30 minutes). Saved versions of the models are saved in the "models" folder in this repository and can be loaded using "load('models/[modelname].RData')" for faster computing. 
+On my machine, the models in the following sections take a while to train (about 20-30 minutes). Saved versions of the models are available in the "models" folder in this repository and can be loaded using "load('models/[modelname].RData')" for faster computing. 
 
 ## Preliminary ARIMA Modeling
 The ACF is suggestive of an MA(52) model while the PACF suggests an AR(54) model, so ARIMA(0, 1, 52) and ARIMA(54, 1, 0) might be a good place to start for initially fit models. However, a more appropriate approach would likely be setting the seasonality of the data to daily (48 periods) and attempting ARIMA from there. This may not accurately address yearlong seasonal trends, but weather data may account for this in a later dynamic regression model.
@@ -443,49 +464,51 @@ The ACF is suggestive of an MA(52) model while the PACF suggests an AR(54) model
 univar = ts(totalEnergyDF, frequency = 48)[,7]
 
 # create model and forecast for 100 days
-auto.arima(univar) -> univarARIMA
+load("models/univarARIMA.RData")
+# auto.arima(univar) -> univarARIMA
+
 UAfc <- forecast(univarARIMA, h=4800)
 
 # plot forecast
 plot(UAfc, xlim=c(540, 600), ylim=c(0,175))
 
 ```
-This model seems to capture the daily cycle of energy consumption quite well, but doesn't well account for the influence of temperature or the general variation in the data. To determine if another ARIMA model would perform better, I'll use fable::ARIMA to investigate three additional ARIMA models before attempting dynamic regression with ARIMA errors.
+This model seems to capture the daily cycle of energy consumption quite well, but doesn't well account for general variation in the data, which could likely be attributed to changing outside temperatures. To determine if another ARIMA model would perform better, fable::ARIMA can be used to investigate additional ARIMA models before attempting dynamic regression with ARIMA errors.
 
 ## ARIMA Model Search
-
 ```{r}
+load(file ="models/fableModels.RData")
 
 # Create models using fable::ARIMA for better plotting interface
-models <- totalEnergyDF %>% 
-  filter(equipment == "AHU2E") %>% 
-  model(stepwise = ARIMA(totalEnergy),
-        search = ARIMA(totalEnergy, stepwise = FALSE),
-        seasonal = ARIMA(totalEnergy ~ PDQ(period=48)))
+# models <- totalEnergyDF %>% 
+#   filter(equipment == "AHU2E") %>% 
+#   model(stepwise = ARIMA(totalEnergy),
+#         search = ARIMA(totalEnergy, stepwise = FALSE),
+#         seasonal = ARIMA(totalEnergy ~ PDQ(period=48)))
 
 models %>% select(seasonal) -> seasonal
 models %>% select(stepwise) -> stepwise
 models %>% select(search) -> search
 
 # plots residuals
-seasonal %>% gg_tsresiduals()
-stepwise %>% gg_tsresiduals()
-search %>% gg_tsresiduals()
+seasonal %>% gg_tsresiduals() + ggtitle("ARIMA(5,0,0)(1,1,0)[48]")
+stepwise %>% gg_tsresiduals() + ggtitle("ARIMA(1,1,0)(2,0,0)[2]")
+search %>% gg_tsresiduals() + ggtitle("ARIMA(4,1,0)(2,0,0)[2]")
 
 # weekly seasonal plot of residuals
 residuals(seasonal) %>%
   as_tsibble(key=.model, index=time) %>%
-  gg_season(y=.resid, period = "week")
+  gg_season(y=.resid, period = "week") + ggtitle("ARIMA(5,0,0)(1,1,0)[48]")
 
 residuals(stepwise) %>%
   as_tsibble(key=.model, index=time) %>%
-  gg_season(y=.resid, period = "week")
+  gg_season(y=.resid, period = "week") + ggtitle("ARIMA(1,1,0)(2,0,0)[2]")
 
 residuals(search) %>%
   as_tsibble(key=.model, index=time) %>%
-  gg_season(y=.resid, period = "week")
+  gg_season(y=.resid, period = "week") + ggtitle("ARIMA(4,1,0)(2,0,0)[2]")
 ```
-It appears the seasonal model has residuals which are the most normally distributed and which most closely approach white noise. Seasonal plots also show more balance in the seasonally adjusted model compared to the large spikes at the beginning and end of each day in the search and stepwise models. Evaluating forecasts gives a clearer picture.
+It appears the seasonal model has residuals which are the most normally distributed and which most closely approach white noise. The drop in residuals in the month of January can be attributed to system inactivity as the University was on winter break. Seasonal plots also show more balance in the seasonally adjusted model compared to the large spikes at the beginning and end of each day in the search and stepwise models. Evaluating forecasts gives a clearer picture.
 
 ```{r}
 search %>% forecast(h=480) -> searchFC
@@ -499,15 +522,15 @@ seasonalFC %>% autoplot()
 Only the model with a 48 seasonal term captures any of the daily cycle in the data, whereas the other two models seems to take a blind guess at the mean value of the process.
 
 ## Dynamic Regression with ARIMA Errors
-
-The ARIMA model seems to capture the daily cycle in the data well, but daily and seasonal variation exists and this variation could likely be explained by daily and seasonal changes in outdoor temperatures. To capture this variation, dynamic regression with ARIMA error can be applied. 
+The ARIMA model seems to capture the daily cycle in the data well, but daily and seasonal variation could likely be explained by daily and seasonal changes in outdoor temperatures. To capture this variation, dynamic regression with ARIMA error can be applied. 
 ```{r}
+load("models/dynReg.RData")
 
 # Dynamic regression with all available data
-dynReg <- weather_energy %>% 
-  fill_gaps() %>%
-  filter(equipment == "AHU2E") %>% 
-  model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
+# dynReg <- weather_energy %>% 
+#   fill_gaps() %>%
+#   filter(equipment == "AHU2E") %>% 
+#   model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
 
 report(dynReg)
 
@@ -518,11 +541,12 @@ residuals(dynReg) %>%
   gg_season(y=.resid, period = "week")
 
 # Dynamic regression excluding anything after April 1 to allow for test forecasting
-dynRegTrain <- weather_energy %>% 
-  fill_gaps() %>%
-  filter(equipment == "AHU2E") %>% 
-  filter(time < dmy_h("1-04-2021 00")) %>%
-  model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
+load(file="models/dynRegTrain.Rdata")
+# dynRegTrain <- weather_energy %>% 
+#   fill_gaps() %>%
+#   filter(equipment == "AHU2E") %>% 
+#   filter(time < dmy_h("1-04-2021 00")) %>%
+#   model(ARIMA(totalEnergy ~ tempAvg + I(tempAvg^2) + PDQ(period=48)))
 
 dynRegfc <- forecast(dynRegTrain, new_data = weather_energy %>% 
   fill_gaps() %>%
@@ -531,52 +555,49 @@ dynRegfc <- forecast(dynRegTrain, new_data = weather_energy %>%
 
 report(dynRegTrain)
 
-dynRegTrain %>% gg_tsresiduals()
+dynRegTrain %>% gg_tsresiduals() + ggtitle("Dynamic Reression with ARIMA(5,0,0)(1,1,0)[48] Errors")
 
 residuals(dynRegTrain) %>%
   as_tsibble(key=.model, index=time) %>%
-  gg_season(y=.resid, period = "week")
+  gg_season(y=.resid, period = "week") + ggtitle("Dynamic Reression with ARIMA(5,0,0)(1,1,0)[48] Errors")
 
-autoplot(dynRegfc, weather_energy %>% filter(time >= dmy_h("1-04-2021 00")))
+autoplot(dynRegfc, weather_energy %>% filter(time >= dmy_h("1-04-2021 00"))) + ggtitle("Dynamic Reression with ARIMA(5,0,0)(1,1,0)[48] Errors")
 ```
-This dynamic regression model seems to be the best at capturing additional daily variation which may be attributed to temperature. Looking at the residuals on a weekly basisi over the year, it can be seen that the yearly seasonal component is not being completely accounted for, especially in the changing startup time of the system over the course of the year.
+This dynamic regression model seems to be the best at capturing additional variation outside of the daily cycle. Looking at the residuals on a weekly basis over the year, it can be seen that the yearly seasonal component is not being completely accounted for, especially in the changing startup time of the system over the course of the year. Further work in decomposing the daily and yearly trends, potentially with a GAMM or prophet model, could improve performance.
 
 ## Model of the Data Generating Process
 The data generating process for system energy consumption can be modeled as a dynamic regression with ARIMA errors in the form:
 
-y = β_0 + β_1\*tempAvg + β_2\*tempAvg^2 + ε
+y = B_0 + B_1\*tempAvg + B_2\*tempAvg^2 + e
 
-where ε is ARIMA (5,0,0,)(1,1,0)[48]
-
-
-# Discussion of the statistical model
+where e is ARIMA (5,0,0,)(1,1,0)[48]
 
 
-Describe how the formal statistical model captures and aligns with the narrative of the data-generating process.
-Flag any statistical challenges raised by the data generating process, e.g.
-selection bias; survivorship bias
-omitted variables bias
-etc.
+# Discussion of the Statistical Model
 
+The provided ARIMA model for errors fits a reasonable understanding of the data generating process. 5 Lag terms in the non-seasonal component fits with the physical limitations of the system which prevent rapid changes in energy consumption. A seasonal lag of 1 with 1 difference fits with the clearly shown daily cycle in the data and differencing creates stationary data out of a potential yearly trend. The linear model component of the dynamic regression can be investigated visually.
 
-# References
+## Temperature in Model and Acutality
+```{r}
+tempFunc <- function(x){
+  return(0.3917655*x^2 -0.0172378*x)
+}
 
+ggplot(data = weather_energy %>% filter(totalEnergy > 50), aes(x=tempAvg)) + geom_point(aes(y=totalEnergy)) + geom_smooth(aes(y=totalEnergy)) +
+  geom_function(fun = tempFunc, color ="red") +
+  ggtitle("Comparison of Energy Model and Real Data")
 
+```
+It seems like the model would likely perform significantly better if the quadratic model were to be shifted such that the minimum were in the 13-18 degree range, as the current model doesn't appear to fit the data as well as possible.
 
+# Lingering and Futher Questions
+The largest problem facing this modeling approach is the messy relationship between actual historical energy use and calculated energy consumption. It is possible that assuming a constant linear relationship between this two quantities oversimplifies the dynamics of energy use within a building that serves many purposes at different times throughout the year. In the event oversimplification of the relationship doesn't account for the lack of a linear relationship, serious consideration would need to be given to improving the model for calculating energy usage before drawing sound conclusions about potential ways to reduce energy usage. Further consultation with energy experts is needed.
 
+Also of note is the potential for the use of a hierarchical approach to forecasting given the current model of calculated energy consumption being an aggregation of many sub calculations (AHU Energy, Fan Energy, Room Energy). This study limited the scope of modeling due to the intensive process of obtaining and cleaning data combined with developing a calculation methodology for energy consumption, so investigation into other methods which might better account for the potential for multiple cycle periods (year and day) may include GAM models, a Fourier series approach with more rigorous forecasting model evaluation techniques on the finalized model.
 
-# Links to sources
-- US DOE Report: https://www.energy.gov/sites/prod/files/2017/12/f46/bto-DOE-Comm-HVAC-Report-12-21-17.pdf 
-- BTU formulae: 
-  - https://www.advantageengineering.com/fyi/288/pdf/advantageIndustrialFormulas.pdf
-  - https://www.engineeringtoolbox.com/cooling-heating-equations-d_747.html
-  - https://www.energyvanguard.com/blog/converting-heating-and-cooling-loads-air-flow-physics
-- Supply Air Temperature: https://www.sciencedirect.com/topics/engineering/supply-air-temperature
-- General readings:
-  - https://onlinelibrary.wiley.com/doi/full/10.1111/ina.12496?casa_token=WXZVCDnNN9AAAAAA%3A-yxXhqtRRzBjY5bNRnOfwfIpDrbxLWxvaFWFe9TMt17Pbim5uxgKQn4R8EqDvDDaE3mU4svSIxvo9GP2
-  - https://www.sciencedirect.com/science/article/pii/S1474667016440887
-  - https://www.sciencedirect.com/science/article/pii/S1364032113004322?casa_token=UDbPZbtcuZwAAAAA:aR-hPKZ_P-eEZdsk3nO_pjKVmUum4RKqjDi43Jp4-mTD9MqAc5BhJFo7XG4b2qwNo0FLwpfvmWE
-  - https://www.eia.gov/energyexplained/us-energy-facts/
+# Conclusions
+A method of calculating energy usage from system dynamics was developed, implemented and evaluated. Though the verification of these calculations didn't point to a strong linear relationship, the calculated values were significant predictors of actual values, suggesting that a further tuned model and additional research into the building energy system could provide an adequate method of estimating energy consumption.
 
+A dynamic regression model with ARIMA errors was created which accounted for the daily cycle of energy use in the building and the influence of local temperature on energy consumption, though improvements could be made in the modeling of the relationship of energy consumption and local temperature. Further work is needed to solidify a model which could be used for effective simulation and efficiency optimizaiton. 
 
 

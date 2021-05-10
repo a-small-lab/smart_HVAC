@@ -1,0 +1,526 @@
+---
+title: "data_viz"
+author: "Caleb Neale"
+date: "4/28/2021"
+output: pdf_document
+---
+# Read Data
+```{r}
+load(file="data\\cleanedData.Rdata")
+```
+
+
+# Equipment Plotting
+## Autoplot variables of interest
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+library(fpp3)
+library(plotly)
+
+hist(equip$totalHeat)
+
+autoplot(totalEnergyDF, .vars=totalHeat.AHU, ylab="Total AHU Heat, kW")
+autoplot(totalEnergyDF, .vars=totalHeat.room, ylab="Total Room Heat, kW")
+autoplot(totalEnergyDF, .vars=fanEnergy, ylab="Fan Energy, kW")
+autoplot(totalEnergyDF, .vars = totalHeat, ylab="Combined room and AHU Heat, kW")
+autoplot(totalEnergyDF, .vars = totalEnergy, ylab="Fan, Room, and AHU Energy, kW") 
+
+
+# inspect winter break period
+totalEnergyDF %>% filter(month(time) == 1 | month(time) == 12) %>% autoplot(.vars = totalEnergy) %>% ggplotly()
+totalEnergyDF %>% autoplot(.vars = totalEnergy) %>% ggplotly()
+
+
+# cut 12-19 to 1-3 as this was a winter break period and doesn't follow the usual cycle
+```
+## Area Plot Total Energy
+```{r}
+# get longform data for plotting
+totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2E") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2E
+
+totalEnergyDF %>% select(-totalHeat, -totalEnergy) %>% filter(equipment == "AHU2W") %>% pivot_longer(cols = c(totalHeat.AHU, fanEnergy, totalHeat.room), names_to = "datapoint", values_to = "value") -> longAHU2W
+
+# stacked area plots
+ggplot(data = longAHU2W, aes(x=time, y=value, fill=datapoint)) + geom_area()
+ggplot(data = longAHU2E, aes(x=time, y=value, fill=datapoint)) + geom_area()
+
+# proportional stacked area plots
+ggplot(longAHU2W, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+
+ggplot(longAHU2E, aes(x=time, y=value, fill=datapoint)) + 
+    geom_area(position = "fill") + scale_fill_brewer(palette = "Blues")
+```
+## Energy and Temperature
+```{r}
+weather_merge = weather
+
+# shift weather data by a minute to allow for merging
+weather_merge$obsTimeLocal = weather_merge$obsTimeLocal + 60
+
+# merge data
+left_join(totalEnergyDF, weather_merge, by=c("time" = "obsTimeLocal")) %>% filter(!is.na(totalEnergy))-> weather_energy
+
+# plot, filtering out low energy values for when HVAC system is "off"
+ggplot(data = weather_energy %>% filter(totalEnergy > 50), aes(x=tempAvg, y=totalEnergy)) + geom_point() + geom_smooth()
+ggplot(data = weather_energy %>% filter(totalEnergy > 50), aes(x=humidityAvg, y=totalEnergy)) + geom_point() + geom_smooth()
+
+```
+
+## Seasonal plots
+```{r}
+totalEnergyDF = fill_gaps(totalEnergyDF)
+gg_season(totalEnergyDF, totalEnergy, period = "week") %>% ggplotly()
+gg_season(totalEnergyDF, totalEnergy, period = "day")
+gg_season(totalEnergyDF, totalEnergy, period = "month")
+gg_season(totalEnergyDF, totalEnergy, period = "year")
+gg_season(totalEnergyDF, totalEnergy, period = "hour")
+
+
+
+gg_subseries(fill_gaps(equip), totalHeat, period = "day")
+
+gg_season(fill_gaps(equip), fanEnergy)
+gg_season(fill_gaps(equip), fanEnergy, period = "day")
+gg_subseries(fill_gaps(equip), fanEnergy, period = "day")
+
+```
+
+# Seasonal Subseries Plots
+```{r}
+gg_subseries(totalEnergyDF, totalEnergy, period="day")
+
+```
+
+# Lag Plots
+```{r}
+totalEnergyDF %>% select(totalEnergy) %>% filter(equipment == "AHU2E") %>% gg_lag(y=totalEnergy, geom = "point")
+totalEnergyDF %>% select(totalEnergy) %>% filter(equipment == "AHU2W") %>% gg_lag(y=totalEnergy, geom = "point")
+
+```
+# Autocorrelation Plots
+```{r}
+
+# ACFs
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% ACF(totalEnergy) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% ACF(totalEnergy) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% ACF(fanEnergy) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% ACF(fanEnergy) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% ACF(totalHeat.AHU) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% ACF(totalHeat.AHU) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% ACF(totalHeat.room) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% ACF(totalHeat.room) %>% autoplot()
+
+# PACFs
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% PACF(totalEnergy) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(totalEnergy) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% PACF(fanEnergy) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(fanEnergy) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% PACF(totalHeat.AHU) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(totalHeat.AHU) %>% autoplot()
+
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% PACF(totalHeat.room) %>% autoplot()
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% PACF(totalHeat.room) %>% autoplot()
+```
+# Moving average plots
+```{r}
+totalEnergyMA <- totalEnergyDF %>% mutate(
+    `200MA` = slider::slide_dbl(totalEnergy, mean,
+                .before =100, .after = 100, .complete = TRUE)
+  )
+
+totalEnergyMA %>% filter(equipment == "AHU2E") %>%
+  autoplot(totalEnergy, color = "gray") +
+  geom_line(aes(y = `200MA`), color = "#D55E00") +
+  labs(y = "Total Energy",
+       title = "Total Energy over Time, AHU2E") +
+  guides(colour = guide_legend(title = "series"))
+
+totalEnergyMA %>% filter(equipment == "AHU2W") %>%
+  autoplot(totalEnergy, color = "gray") +
+  geom_line(aes(y = `200MA`), color = "#D55E00") +
+  labs(y = "Total Energy",
+       title = "Total Energy over Time, AHU2W") +
+  guides(colour = guide_legend(title = "series"))
+
+
+
+```
+# Differencing
+```{r}
+totalEnergyDF %>% filter(equipment == "AHU2E") %>% gg_tsdisplay(totalEnergy, plot_type = "partial")
+totalEnergyDF %>% filter(equipment == "AHU2W") %>% gg_tsdisplay(difference(totalEnergy), plot_type = "partial")
+
+```
+
+# Model search
+```{r}
+models <- totalEnergyDF %>% 
+  filter(equipment == "AHU2E") %>% 
+  model(stepwise = ARIMA(totalEnergy),
+        search = ARIMA(totalEnergy, stepwise = FALSE),
+        arima0132 = ARIMA(totalEnergy ~ pdq(0,1,10:32, q_init=32), order_constraint = p + q + P + Q <= 35),
+        arima3610 = ARIMA(totalEnergy ~ pdq(10:36,1,0, p_init=36), order_constraint = p + q + P + Q <= 38))
+
+
+glance(models) %>% arrange(AICc) %>% select(.model:BIC)
+
+models %>% select(search) %>% gg_tsresiduals()
+
+# from book, what are lag and dof parameters? are these values appropriate here?
+augment(models) %>%
+  filter(.model=='search') %>%
+  features(.innov, ljung_box, lag = 10, dof = 3)
+
+# results of above suggest residuals are not white noise, what do I do about this? no next steps listed in the book
+```
+# Hierarchical approach
+
+## Plotting and formatting
+```{r}
+# subset and rename energy data
+
+hierEnergy <- totalEnergyDF %>% 
+  select(totalHeat.room, fanEnergy, totalHeat.AHU) %>% 
+  pivot_longer(names_to = "datapoint", 
+               values_to = "value",
+               cols = c(totalHeat.room, fanEnergy, totalHeat.AHU)) %>%
+  mutate(datapoint = recode(datapoint,
+                            `totalHeat.room` = "roomHeat",
+                            `totalHeat.AHU` = "AHUHeat",
+                            `fanEnergy` = "fanEnergy")
+  ) 
+
+as_tsibble(hierEnergy, key = c(datapoint, equipment), index = time) -> temp
+                      
+# create hierarchical tsibble
+hierEnergy %>% aggregate_key(equipment / datapoint, value = sum(value)) -> hierEnergy
+
+# plot hierarchical data
+hierEnergy %>%
+  autoplot(value) +
+  labs(y = "Energy (kW)",
+       title = "Energy Consumption, AHU and Components") +
+  facet_wrap(vars(datapoint, equipment), scales = "free_y", ncol = 3)
+
+hierEnergy %>%
+  autoplot(value) +
+  labs(y = "Energy (kW)",
+       title = "Energy Consumption, AHU and Components") +
+  facet_wrap(vars(equipment), scales = "free_y", ncol = 3)
+
+
+hierEnergy %>%
+  filter(is_aggregated(datapoint)) %>%
+  autoplot(value) +
+  labs(y = "Energy (kW)",
+       title = "Energy Consumption, AHU and Components") +
+  facet_wrap(vars(equipment), scales = "free_y", ncol = 3) +
+  theme(legend.position = "none")
+
+```
+```{r}
+# ARIMA
+fit <- hierEnergy %>% 
+  filter_index(~ "2021-03") %>%
+  model(base = ARIMA(value)) %>%
+  reconcile(
+    bu = bottom_up(base),
+    ols = min_trace(base, method = "ols"),
+    mint = min_trace(base, method = "mint_shrink"),
+  )
+
+fc <- fit %>% forecast(h = "1 month")
+
+fc %>%
+  filter(is_aggregated(datapoint)) %>%
+  filter_index("2021-04" ~.) %>%
+  autoplot(
+    hierEnergy %>%
+  filter_index("2021-04" ~.),
+    level = NULL
+  ) +
+  labs(y = "Trips ('000)") +
+  facet_wrap(vars(equipment), scales = "free_y")
+
+# ETS
+fit <- hierEnergy %>% fill_gaps() %>% fill(value, .direction = "downup") %>%
+  filter_index(~ "2021-03") %>%
+  model(base = ETS(value)) %>%
+  reconcile(
+    bu = bottom_up(base),
+    ols = min_trace(base, method = "ols"),
+    mint = min_trace(base, method = "mint_shrink"),
+  )
+
+fc <- fit %>% forecast(h = "1 month")
+
+fc %>%
+  filter(is_aggregated(datapoint)) %>%
+  filter_index("2021-04" ~.) %>%
+  autoplot(
+    hierEnergy %>%
+  filter_index("2021-04" ~.),
+    level = NULL
+  ) +
+  labs(y = "Trips ('000)") +
+  facet_wrap(vars(equipment), scales = "free_y")
+```
+
+# Regression with ARIMA errors
+
+## Cut winter break data
+```{r}
+weather_energy$activeHours = 0
+weather_energy[weather_energy$totalEnergy > 30, 12] = 1
+
+
+# cut 12-19 to 1-3 as this was a winter break period and doesn't follow the usual cycle
+
+preWB = weather_energy %>% filter(time < dmy_h("19-12-2020 00"))
+postWB =  weather_energy %>% filter(time > dmy_h("3-1-2021 00"))
+notWB = rbind(preWB, postWB)
+
+notWB$tempSq = notWB$tempAvg^2
+```
+
+
+## Regression with ARIMA, quadratic on temperature, linear on active hours, not winter break
+```{r}
+fit1 = notWB %>% 
+  filter(equipment == "AHU2E") %>%
+  fill_gaps() %>%
+  model(ARIMA(totalEnergy ~ tempAvg + tempSq + activeHours))
+
+report(fit1)
+
+bind_rows(
+    `Regression residuals` =
+        as_tibble(residuals(fit1, type = "regression")),
+    `ARIMA residuals` =
+        as_tibble(residuals(fit1, type = "innovation")),
+    .id = "type"
+  ) %>%
+  mutate(
+    type = factor(type, levels=c(
+      "Regression residuals", "ARIMA residuals"))
+  ) %>%
+  as_tsibble(key=type, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+
+
+fit1 %>% gg_tsresiduals()
+```
+
+## Include Winter Break Data
+```{r}
+weather_energy$tempSq = weather_energy$tempAvg^2
+
+fit2 = weather_energy %>% 
+  filter(equipment == "AHU2E") %>%
+  fill_gaps() %>%
+  model(ARIMA(totalEnergy ~ tempAvg + tempSq + activeHours))
+
+report(fit2)
+
+bind_rows(
+    `Regression residuals` =
+        as_tibble(residuals(fit2, type = "regression")),
+    `ARIMA residuals` =
+        as_tibble(residuals(fit2, type = "innovation")),
+    .id = "type"
+  ) %>%
+  mutate(
+    type = factor(type, levels=c(
+      "Regression residuals", "ARIMA residuals"))
+  ) %>%
+  as_tsibble(key=type, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+
+fit2 %>% gg_tsresiduals()
+
+```
+
+## Remove nightime data
+```{r}
+weather_energy %>% filter(totalEnergy > 30) -> temp
+
+fit3 = temp %>% 
+  filter(equipment == "AHU2E") %>%
+  fill_gaps() %>%
+  model(ARIMA(totalEnergy ~ tempAvg + tempSq))
+
+report(fit3)
+
+bind_rows(
+    `Regression residuals` =
+        as_tibble(residuals(fit2, type = "regression")),
+    `ARIMA residuals` =
+        as_tibble(residuals(fit2, type = "innovation")),
+    .id = "type"
+  ) %>%
+  mutate(
+    type = factor(type, levels=c(
+      "Regression residuals", "ARIMA residuals"))
+  ) %>%
+  as_tsibble(key=type, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+
+fit3 %>% gg_tsresiduals()
+
+```
+## NN Approach
+```{r}
+fit4 = notWB %>% 
+  filter(equipment == "AHU2E") %>%
+  fill_gaps() %>%
+  fill(totalEnergy, .direction = "downup") %>%
+  model(NNETAR(totalEnergy))
+
+report(fit4)
+
+bind_rows(
+    `Regression residuals` =
+        as_tibble(residuals(fit4, type = "regression")),
+    `ARIMA residuals` =
+        as_tibble(residuals(fit4, type = "innovation")),
+    .id = "type"
+  ) %>%
+  mutate(
+    type = factor(type, levels=c(
+      "Regression residuals", "ARIMA residuals"))
+  ) %>%
+  as_tsibble(key=type, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+
+
+fit4 %>% gg_tsresiduals()
+
+
+fit4 %>%
+forecast(h = 48) -> forecasts
+
+
+fit4 %>%
+forecast(h = 200) -> forecasts200
+
+
+
+fit4 %>%
+  generate(h = 1000, times=100) %>%
+  autoplot(.sim) +
+  autolayer(notWB %>% filter(time > dmy_h("15-4-2021 00")), totalEnergy) +
+  theme(legend.position = "none")
+
+
+forecasts %>% autoplot(notWB %>% filter(time > dmy_h("15-4-2021 00")))
+
+forecasts200 %>% autoplot(notWB %>% filter(time > dmy_h("15-4-2021 00")))
+
+
+```
+
+### NN Approach with constrained bounds
+```{r}
+scaled_logit <- function(x, lower = 0, upper = 300) {
+  log((x - lower) / (upper - x))
+}
+inv_scaled_logit <- function(x, lower = 0, upper = 300) {
+  (upper - lower) * exp(x) / (1 + exp(x)) + lower
+}
+my_scaled_logit <- new_transformation(
+                    scaled_logit, inv_scaled_logit)
+
+fit5 <-notWB %>% 
+  filter(equipment == "AHU2E") %>%
+  fill_gaps() %>%
+  fill(totalEnergy, .direction = "downup") %>%
+  model(
+    NNETAR(
+     my_scaled_logit(totalEnergy)
+    )
+  )
+
+
+fit5 %>%
+  forecast(h=1) -> constrainedForecasts
+
+constrainedForecasts %>%
+  autoplot() +
+  autolayer(notWB %>% filter(time > dmy_h("15-4-2021 00")), totalEnergy) +
+  theme(legend.position = "none")
+
+fit5 %>%
+  generate(h = 1000, times=10) %>%
+  autoplot(.sim) +
+  autolayer(notWB %>% filter(time > dmy_h("15-4-2021 00")), totalEnergy) +
+  theme(legend.position = "none")
+
+bind_rows(
+    `Regression residuals` =
+        as_tibble(residuals(fit5, type = "regression")),
+    `ARIMA residuals` =
+        as_tibble(residuals(fit5, type = "innovation")),
+    .id = "type"
+  ) %>%
+  mutate(
+    type = factor(type, levels=c(
+      "Regression residuals", "ARIMA residuals"))
+  ) %>%
+  as_tsibble(key=type, index=time) %>%
+  gg_season(y=.resid, period = "week")
+
+
+fit5 %>% gg_tsresiduals()
+
+```
+
+
+# Investigate relationship of building data and enery consupmtion
+```{r}
+left_join(weather_energy, buildingEnergy, by="time") -> allData
+
+allData$cooling = 0
+allData %>% filter(!is.na(tempAvg)) -> allDataTemp
+allDataTemp[allDataTemp$tempAvg > 16, 17] = 1
+
+cooling <- allDataTemp %>% filter(cooling == 1) %>% as_tsibble(key = equipment, index = time)
+heating <- allDataTemp %>% filter(cooling == 0) %>% as_tsibble(key = equipment, index = time)
+
+ggplot(data = cooling, aes(x=chilledWater, y=totalHeat.AHU)) + geom_point() + geom_smooth(method = "lm")
+ggplot(data = heating, aes(x=heating, y= totalEnergy-fanEnergy)) + geom_point() + geom_smooth(method = "lm")
+
+ggplot(data = cooling) + geom_line(color = "red", aes(x=time, y=totalHeat.AHU)) + geom_line(color="blue", aes(x=time, y=(chilledWater*1000)/3412.142))
+
+fig <- plot_ly(cooling, x = ~time, y = ~totalHeat.AHU, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+fig %>% add_trace(y = ~(chilledWater*1000)/3412.142, name = 'Chilled Water', mode = 'lines')
+
+fig <- plot_ly(heating, x = ~time, y = ~ totalEnergy-fanEnergy, name = 'AHU Heat', type = 'scatter', mode = 'lines') 
+fig %>% add_trace(y = ~(heating*1000)/3412.142, name = 'Heating', mode = 'lines')
+
+coolingLM = lm(chilledWater~totalHeat.AHU, data = cooling)
+heatingLM = lm(heating ~ totalEnergy - fanEnergy, data = heating)
+
+plot(coolingLM$residuals)
+plot(heatingLM$residuals)
+
+summary(coolingLM)
+summary(heatingLM)
+
+```
+```{r}
+library(mgcv)
+notWB$Day = day(notWB$time)
+gamm(totalEnergy ~ s(tempAvg) + s(tempSq) + activeHours + s(time), data=notWB, correlation = corARMA(form = ~ 1|Day, p = 1))
+```
