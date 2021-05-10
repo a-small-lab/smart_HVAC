@@ -171,7 +171,9 @@ The primary drivers of energy use in this HVAC system come from treatment at the
 The change in energy due to air treatment (at either AHU or VAV) can be divided into latent and sensible heat. Changes in latent heat arise from humidity added or removed from the air whereas sensible heat is affected by changes in air temperature. Enthalpy change accounts for both latent and sensible heat as is calculated the climateeng package @ChrrasClimateengDocumentation. Equation 1, below, can then be used to determine total heat by combining calculated enthalpy change with collected data on air volume flow.
 
 #### Equation 1, Latent and Sensible Heat
+
 @CoolingHeatingEquations
+
 h_t = ρ\*q\*dh
 
 where:
@@ -243,7 +245,9 @@ rooms$totalHeat = abs(rooms$inputEnthalpy - rooms$outputEnthalpy)*CFMtoM_SConver
 Power used by a fan can be calculated using equation 2, below. Pressure set to a constant typical of commercial HVAC fans, fan efficiency will be assumed to be 60%, and air volume is measured.
 
 #### Equation 2, Power Used by Fan
+
 @FansEfficiencyPower
+
 P = dp*q/mu
 
 where:
@@ -454,7 +458,7 @@ totalEnergyDF %>% filter(equipment == "AHU2E") %>% gg_tsdisplay(difference(total
 totalEnergyDF %>% filter(equipment == "AHU2W") %>% gg_tsdisplay(difference(totalEnergy), plot_type = "partial", lag_max = 140)
 ```
 ## Note on Modeling
-On my machine, the models in the following sections take a while to train (about 20-30 minutes). Saved versions of the models are available in the "models" folder in this repository and can be loaded using "load('models/[modelname].RData')" for faster computing. 
+On my machine, the models in the following sections take a while to train (about 20-30 minutes). Saved versions of the models are used form the "models" folder in this repository and can be loaded using "load('models/[modelname].RData')" for faster computing. To calcualted to models on runtime, uncomment the corresponding code.
 
 ## Preliminary ARIMA Modeling
 The ACF is suggestive of an MA(52) model while the PACF suggests an AR(54) model, so ARIMA(0, 1, 52) and ARIMA(54, 1, 0) might be a good place to start for initially fit models. However, a more appropriate approach would likely be setting the seasonality of the data to daily (48 periods) and attempting ARIMA from there. This may not accurately address yearlong seasonal trends, but weather data may account for this in a later dynamic regression model.
@@ -599,5 +603,8 @@ Also of note is the potential for the use of a hierarchical approach to forecast
 A method of calculating energy usage from system dynamics was developed, implemented and evaluated. Though the verification of these calculations didn't point to a strong linear relationship, the calculated values were significant predictors of actual values, suggesting that a further tuned model and additional research into the building energy system could provide an adequate method of estimating energy consumption.
 
 A dynamic regression model with ARIMA errors was created which accounted for the daily cycle of energy use in the building and the influence of local temperature on energy consumption, though improvements could be made in the modeling of the relationship of energy consumption and local temperature. Further work is needed to solidify a model which could be used for effective simulation and efficiency optimizaiton. 
+
+# References
+
 
 
