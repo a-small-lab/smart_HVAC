@@ -1,0 +1,36 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+df <- read.csv("data_sensor_211_wall_back.csv")
+df
+```
+```{r}
+library(tidyverse)
+library(lubridate)
+library(psych)
+
+corr = df %>% select(-timestamp) %>% princomp()
+df %>% select(-timestamp) %>% pairs.panels()
+```
+
+Two clusters to start with, clean vs dirty basically
+Euclidian distance
+Eventually verify the clustering boundary
+Gaussian mixture could allow for probabilities of being in a given cluster
+Once concept of occupancy, predict it with a probability then optimize
+COnditional distribution of other variables 
+
+```{r}
+library(ggpubr)
+library(factoextra)
+df %>% select(-pm10_est, -timestamp) %>% kmeans(3) -> kmeans
+fviz_cluster(kmeans, data = df %>% select(-pm10_est, -timestamp),
+             palette = c("#2E9FDF", "#00AFBB"), 
+             geom = "point",
+             ellipse.type = "convex", 
+             ggtheme = theme_bw()
+             )
+```
+

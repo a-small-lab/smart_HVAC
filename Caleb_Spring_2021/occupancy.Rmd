@@ -1,0 +1,22 @@
+---
+title: "Occupancy Modeling"
+author: "Caleb Neale"
+date: "2/13/2022"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+data <- read.csv("data_sensor_211_wall_back.csv")
+data
+```
+```{r}
+library(tsibble)
+library(lubridate)
+library(plotly)
+data$timestamp <- as.POSIXct(data$timestamp)
+data <- as_tsibble(data, index = timestamp)
+
+(ggplot() + geom_line(data= data, aes(x=timestamp, y=lux))) %>% ggplotly()
+```
+
