@@ -1,0 +1,31 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(fpp3)
+library(DBI)
+library(odbc)
+```
+
+# Import Data
+```{r}
+# connect to database
+con = dbConnect(odbc(),
+          Driver = "SQL Server",
+          Server = "data.fm.virginia.edu",
+          Database = "ToSeas",
+          UID = "can4ku",
+          PWD = "LinkLabDataisHere")
+```
+
+```{sql, connection=con, output.var = "mydataframe"}
+SELECT DISTINCT "Tagname" FROM "OlssonHallLinkLab"
+```
+
+```{sql, connection=con, output.var = "energy_df"}
+SELECT "Value", "Tagname", "Timestamp" FROM "OlssonHallLinkLab" WHERE "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2EMAT' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ESAT' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2EPHT' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2EOAF' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202Floors22011SAT' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERFNVFDO' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERAF' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ERAH' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ESFNVFDO' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202EquipmentAHU2ESAF' OR "Tagname" = 'UVA/Data/Buildings/0202/ac_Buildings0202Floors22011SAF'
+```
