@@ -19,7 +19,7 @@ con = dbConnect(odbc(),
           Server = "data.fm.virginia.edu",
           Database = "ToSeas",
           UID = "can4ku",
-          PWD = "LinkLabDataisHere")
+          PWD = Sys.getenv('DB_PWD'))
 ```
 
 ```{sql, connection=con, output.var = "mydataframe"}
