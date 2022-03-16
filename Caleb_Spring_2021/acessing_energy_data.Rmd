@@ -19,7 +19,8 @@ con = dbConnect(odbc(),
           Server = "data.fm.virginia.edu",
           Database = "ToSeas",
           UID = "can4ku",
-          PWD = Sys.getenv('DB_PWD'))
+          PWD = Sys.getenv('DB_PWD')) 
+          # if DB_PWD doesn't exist, run in console: Sys.setenv(DB_PWD='<the password>')
 ```
 
 ```{sql, connection=con, output.var = "mydataframe"}
